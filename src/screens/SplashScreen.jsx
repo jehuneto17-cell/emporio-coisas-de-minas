@@ -1,10 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Image, Animated, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, Animated, StyleSheet, Dimensions, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../theme';
 
 const { width, height } = Dimensions.get('window');
-const LOGO_W = Math.min(width * 0.82, 320);
+// Na web o app roda dentro de um frame 390×844 — usar essas dimensões para proporções corretas
+const FRAME_W = Platform.OS === 'web' ? 390 : width;
+const FRAME_H = Platform.OS === 'web' ? 844 : height;
+const LOGO_W = FRAME_W * 0.76;
 const LOGO_H = LOGO_W * (767 / 1546);
 
 export default function SplashScreen({ navigation }) {
@@ -44,7 +47,7 @@ export default function SplashScreen({ navigation }) {
       <View style={styles.warmth} />
 
       {/* Ornamento superior */}
-      <Animated.View style={[styles.row, { top: height * 0.24, opacity: decoOpacity }]}>
+      <Animated.View style={[styles.row, { top: FRAME_H * 0.24, opacity: decoOpacity }]}>
         <Ornament />
       </Animated.View>
 
@@ -61,19 +64,19 @@ export default function SplashScreen({ navigation }) {
       </View>
 
       {/* Ornamento inferior */}
-      <Animated.View style={[styles.row, { top: height * 0.72, opacity: decoOpacity }]}>
+      <Animated.View style={[styles.row, { top: FRAME_H * 0.72, opacity: decoOpacity }]}>
         <Ornament />
       </Animated.View>
 
       {/* Barra de progresso */}
-      <View style={[styles.row, { top: height * 0.82 }]}>
+      <View style={[styles.row, { top: FRAME_H * 0.82 }]}>
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
         </View>
       </View>
 
       {/* Footer */}
-      <Text style={[styles.since, { top: height * 0.90 }]}>DESDE 2022</Text>
+      <Text style={[styles.since, { top: FRAME_H * 0.90 }]}>DESDE 2022</Text>
     </View>
   );
 }
@@ -101,10 +104,10 @@ const styles = StyleSheet.create({
 
   warmth: {
     position: 'absolute',
-    width: width * 1.3,
-    height: height * 0.5,
-    top: height * 0.2,
-    left: width * -0.15,
+    width: FRAME_W * 1.3,
+    height: FRAME_H * 0.5,
+    top: FRAME_H * 0.2,
+    left: FRAME_W * -0.15,
     borderRadius: 9999,
     backgroundColor: 'rgba(120,50,30,0.35)',
   },
