@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -45,16 +45,6 @@ export default function App() {
     );
   }
 
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.webPage}>
-        <View style={styles.phoneFrame}>
-          <AppCore />
-        </View>
-      </View>
-    );
-  }
-
   return <AppCore />;
 }
 
@@ -64,18 +54,4 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   loadingText: { color: '#fcf9f5', fontSize: 18 },
-
-  webPage: {
-    flex: 1,
-    backgroundColor: '#ede3d8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-  },
-  phoneFrame: {
-    width: 390,
-    height: 844,
-    overflow: 'hidden',
-    boxShadow: '0 8px 32px rgba(82,23,12,0.18)',
-  },
 });
