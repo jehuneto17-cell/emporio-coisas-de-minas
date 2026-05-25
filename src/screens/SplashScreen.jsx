@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   ornamentLine: { flex: 1, height: 1, backgroundColor: C.ochre, opacity: 0.7 },
   ornamentDiamond: { width: 5, height: 5, backgroundColor: C.ochre, transform: [{ rotate: '45deg' }], opacity: 0.7 },
   logoWrap: { alignItems: 'center' },
-  logo: { width: 240, height: 100 },
+  logo: { width: 260, height: 220 },
   tagline: { marginTop: 24, fontStyle: 'italic', fontSize: 15, color: C.rose, textAlign: 'center', lineHeight: 20 },
   progressWrap: { position: 'absolute', top: '82%', alignItems: 'center' },
   progressTrack: { width: 120, height: 2, borderRadius: 999, backgroundColor: 'rgba(255,180,165,0.2)', overflow: 'hidden' },
