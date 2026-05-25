@@ -7,7 +7,7 @@ const { width, height } = Dimensions.get('window');
 // Na web o app roda dentro de um frame 390×844 — usar essas dimensões para proporções corretas
 const FRAME_W = Platform.OS === 'web' ? 390 : width;
 const FRAME_H = Platform.OS === 'web' ? 844 : height;
-const LOGO_W = FRAME_W * 0.76;
+const LOGO_W = FRAME_W * 0.615; // ~240px no frame de 390px
 const LOGO_H = LOGO_W * (767 / 1546);
 
 export default function SplashScreen({ navigation }) {
@@ -76,7 +76,7 @@ export default function SplashScreen({ navigation }) {
       </View>
 
       {/* Footer */}
-      <Text style={[styles.since, { top: FRAME_H * 0.90 }]}>DESDE 2022</Text>
+      <Text style={[styles.since, { top: FRAME_H * 0.90 }]}>desde 2024</Text>
     </View>
   );
 }
@@ -126,12 +126,13 @@ const styles = StyleSheet.create({
   tagline: {
     marginTop: 20,
     fontStyle: 'italic',
-    fontSize: 15,
+    fontSize: 18,
+    fontWeight: '600',
     color: C.rose,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 24,
     letterSpacing: 0.3,
-    fontFamily: 'WorkSans_400Regular',
+    fontFamily: Platform.OS === 'web' ? '"Times New Roman", Georgia, serif' : 'serif',
   },
 
   row: {
