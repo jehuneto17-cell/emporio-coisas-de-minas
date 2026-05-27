@@ -1,17 +1,37 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  Image, StyleSheet, KeyboardAvoidingView, Platform,
+  Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../theme';
+import { signIn, getAuthErrorMessage } from '../services/auth';
 
 export default function LoginScreen({ navigation }) {
   const [tab, setTab] = useState('login');
-  const [email, setEmail] = useState('joao.silva@gmail.com');
-  const [pwd, setPwd] = useState('canastra2026');
+  const [email, setEmail] = useState('');
+  const [pwd, setPwd] = useState('');
   const [show, setShow] = useState(false);
   const [focus, setFocus] = useState('');
+  const [loadingAuth, setLoadingAuth] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSignIn() {
+    if (!email.trim() || !pwd) {
+      setError('Preencha e-mail e senha.');
+      return;
+    }
+    setError('');
+    setLoadingAuth(true);
+    try {
+      await signIn(email.trim(), pwd);
+      // AppNavigator detects the auth state change and redirects automatically
+    } catch (e) {
+      setError(getAuthErrorMessage(e.code));
+    } finally {
+      setLoadingAuth(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -46,13 +66,13 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.formCard}>
           <Field
             label="E-mail" icon="mail-outline" placeholder="seu@email.com"
-            value={email} onChangeText={setEmail} keyboardType="email-address"
+            value={email} onChangeText={(v) => { setEmail(v); setError(''); }} keyboardType="email-address"
             focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')}
           />
           <View style={{ height: 14 }} />
           <Field
             label="Senha" icon="lock-closed-outline" placeholder="••••••••"
-            value={pwd} onChangeText={setPwd}
+            value={pwd} onChangeText={(v) => { setPwd(v); setError(''); }}
             secureTextEntry={!show} focused={focus === 'pwd'}
             onFocus={() => setFocus('pwd')} onBlur={() => setFocus('')}
             right={
@@ -65,11 +85,17 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.forgot}>Esqueceu a senha?</Text>
           </TouchableOpacity>
 
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
           <TouchableOpacity
-            style={styles.ctaBtn}
-            onPress={() => navigation.replace('Main')}
+            style={[styles.ctaBtn, loadingAuth && styles.ctaBtnDisabled]}
+            onPress={handleSignIn}
+            disabled={loadingAuth}
           >
-            <Text style={styles.ctaBtnText}>Entrar na minha conta</Text>
+            {loadingAuth
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.ctaBtnText}>Entrar na minha conta</Text>
+            }
           </TouchableOpacity>
 
           <View style={styles.dividerSocial}>
@@ -163,10 +189,12 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
   forgotWrap: { alignItems: 'flex-end', marginTop: 8, marginBottom: 6 },
   forgot: { fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
+  errorText: { fontSize: 13, color: '#c0392b', fontFamily: 'WorkSans_500Medium', marginBottom: 8, textAlign: 'center' },
   ctaBtn: {
     height: 52, borderRadius: 12, backgroundColor: C.terra,
     alignItems: 'center', justifyContent: 'center', marginTop: 6,
   },
+  ctaBtnDisabled: { opacity: 0.6 },
   ctaBtnText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
   dividerSocial: { flexDirection: 'row', alignItems: 'center', marginVertical: 18, gap: 10 },
   dividerText: { fontSize: 12, color: C.subtle, fontFamily: 'WorkSans_400Regular' },
