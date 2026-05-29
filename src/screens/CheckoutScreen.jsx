@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 export default function CheckoutScreen({ navigation }) {
+  const { isAuthenticated } = useAuth();
   const [method, setMethod] = useState('pac');
   const [tab, setTab] = useState('pix');
   const [seconds, setSeconds] = useState(15 * 60);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+    }
+  }, []);
 
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
@@ -20,6 +29,36 @@ export default function CheckoutScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Modal de autenticação */}
+      <Modal
+        visible={showAuthModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAuthModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Ionicons name="bag-outline" size={40} color={C.brown} style={{ alignSelf: 'center', marginBottom: 4 }} />
+            <Text style={styles.modalTitle}>Finalizar compra</Text>
+            <Text style={styles.modalDesc}>
+              Entre na sua conta para salvar seu pedido e acompanhar a entrega.
+            </Text>
+            <TouchableOpacity
+              style={styles.modalBtnPrimary}
+              onPress={() => { setShowAuthModal(false); navigation.navigate('Login'); }}
+            >
+              <Text style={styles.modalBtnPrimaryText}>Entrar / Criar conta</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalBtnSecondary}
+              onPress={() => setShowAuthModal(false)}
+            >
+              <Text style={styles.modalBtnSecondaryText}>Continuar como visitante</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
@@ -238,4 +277,12 @@ const styles = StyleSheet.create({
   confirmText: { color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
   secureHint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 8 },
   secureText: { fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  modalBox: { backgroundColor: C.cream, borderRadius: 20, padding: 24, width: '100%', gap: 12, borderWidth: 1, borderColor: C.border },
+  modalTitle: { fontSize: 20, color: C.brown, fontFamily: 'PlusJakartaSans_800ExtraBold', textAlign: 'center' },
+  modalDesc: { fontSize: 14, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center', marginBottom: 4 },
+  modalBtnPrimary: { height: 50, borderRadius: 12, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' },
+  modalBtnPrimaryText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
+  modalBtnSecondary: { height: 50, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  modalBtnSecondaryText: { color: C.muted, fontSize: 15, fontFamily: 'WorkSans_500Medium' },
 });

@@ -16,16 +16,22 @@ import {
 } from '@expo-google-fonts/work-sans';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthProvider } from './src/context/AuthContext';
+import { CartProvider } from './src/context/CartContext';
+import { FavoritesProvider } from './src/context/FavoritesContext';
 
 function AppCore() {
   return (
     <AuthProvider>
-      <SafeAreaProvider>
-        <NavigationContainer>
-          <StatusBar style="dark" />
-          <AppNavigator />
-        </NavigationContainer>
-      </SafeAreaProvider>
+      <CartProvider>
+        <FavoritesProvider>
+          <SafeAreaProvider>
+            <NavigationContainer>
+              <StatusBar style="dark" />
+              <AppNavigator />
+            </NavigationContainer>
+          </SafeAreaProvider>
+        </FavoritesProvider>
+      </CartProvider>
     </AuthProvider>
   );
 }

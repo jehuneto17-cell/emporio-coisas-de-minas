@@ -1,29 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C } from '../theme';
-
-const FAVORITES = [
-  { id: 'f1', name: 'Queijo Canastra Maturado 60 dias', producer: 'Fazenda São João', price: 'R$ 54,90', rating: '4.9', colors: ['#f1dca1', '#a87532'] },
-  { id: 'f2', name: 'Café Especial Cerrado', producer: 'Sítio Boa Vista', price: 'R$ 34,90', rating: '4.8', colors: ['#a86434', '#3a1a08'] },
-  { id: 'f3', name: 'Doce de Leite Cremoso', producer: 'Fazenda Pé da Serra', price: 'R$ 18,50', rating: '4.9', sale: 20, colors: ['#e3a96a', '#7a3c0e'] },
-  { id: 'f4', name: 'Cachaça Ouro Velho', producer: 'Alambique Salinas', price: 'R$ 89,00', rating: '4.7', colors: ['#e9c071', '#8b5a14'] },
-];
+import { useFavorites } from '../context/FavoritesContext';
 
 export default function FavoritesScreen({ navigation }) {
-  const [items, setItems] = useState(FAVORITES);
-  const remove = (id) => setItems((arr) => arr.filter((x) => x.id !== id));
+  const { favorites, removeFavorite } = useFavorites();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Favoritos</Text>
-        <Text style={styles.headerCount}>{items.length} produtos</Text>
+        <Text style={styles.headerCount}>{favorites.length} produtos</Text>
       </View>
 
-      {items.length === 0 ? (
+      {favorites.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="heart-outline" size={64} color={C.border} />
           <Text style={styles.emptyTitle}>Nenhum favorito ainda</Text>
@@ -34,7 +27,7 @@ export default function FavoritesScreen({ navigation }) {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-          {items.map((p) => (
+          {favorites.map((p) => (
             <TouchableOpacity
               key={p.id}
               style={styles.card}
@@ -62,7 +55,7 @@ export default function FavoritesScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               </View>
-              <TouchableOpacity style={styles.removeBtn} onPress={() => remove(p.id)}>
+              <TouchableOpacity style={styles.removeBtn} onPress={() => removeFavorite(p.id)}>
                 <Ionicons name="heart" size={20} color={C.terra} />
               </TouchableOpacity>
             </TouchableOpacity>

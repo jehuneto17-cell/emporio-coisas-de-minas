@@ -1,0 +1,149 @@
+rules_version = '2';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Firestore Security Rules — Empório Coisas de Minas
+// Projeto: emporio-coisas-de-minas
+//
+// Estrutura de coleções esperada:
+//
+//   /products/{productId}            → catálogo de produtos
+//   /users/{uid}                     → perfil do usuário
+//   /users/{uid}/cart/{itemId}       → itens do carrinho
+//   /users/{uid}/favorites/{itemId}  → produtos favoritos
+//   /users/{uid}/orders/{orderId}    → histórico de pedidos
+//
+// Admin: identificado por Custom Claim  { admin: true }
+// (veja instruções abaixo para configurar o claim)
+// ─────────────────────────────────────────────────────────────────────────────
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Funções auxiliares ────────────────────────────────────────────────────
+
+    // Usuário está autenticado
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Usuário é dono do registro (só pode acessar seus próprios dados)
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Usuário é admin — verificação por e-mail (funciona imediatamente).
+    // Upgrade futuro: trocar por request.auth.token.admin == true (Custom Claim).
+    function isAdmin() {
+      return isAuth() && request.auth.token.email == 'emporiominas00@gmail.com';
+    }
+
+    // Campos obrigatórios estão presentes na escrita
+    function hasFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+
+    // ── /products ─────────────────────────────────────────────────────────────
+    // Qualquer usuário autenticado pode ler o catálogo.
+    // Apenas admin pode criar, editar e deletar produtos.
+
+    match /products/{productId} {
+      allow read:             if isAuth();
+      allow create:           if isAdmin()
+                                 && hasFields(['name', 'price', 'category']);
+      allow update, delete:   if isAdmin();
+    }
+
+
+    // ── /users/{uid} ──────────────────────────────────────────────────────────
+    // Cada usuário acessa exclusivamente seus próprios dados.
+    // Admin pode ler qualquer perfil (necessário para suporte/moderação).
+
+    match /users/{uid} {
+      // Perfil do usuário (nome, email, endereços, etc.)
+      allow read:   if isOwner(uid) || isAdmin();
+      allow write:  if isOwner(uid);
+
+      // ── Carrinho (/users/{uid}/cart) ──────────────────────────────────────
+      match /cart/{itemId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Favoritos (/users/{uid}/favorites) ───────────────────────────────
+      match /favorites/{itemId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Pedidos (/users/{uid}/orders) ─────────────────────────────────────
+      // Usuário cria e lê seus próprios pedidos.
+      // Apenas admin pode alterar status (ex.: "enviado", "entregue").
+      // Ninguém pode deletar um pedido (histórico é permanente).
+      match /orders/{orderId} {
+        allow read:   if isOwner(uid) || isAdmin();
+        allow create: if isOwner(uid)
+                         && hasFields(['items', 'total', 'status', 'createdAt']);
+        allow update: if isAdmin();
+        allow delete: if false;
+      }
+    }
+
+
+    // ── Bloqueio geral ─────────────────────────────────────────────────────────
+    // Qualquer coleção não coberta pelas regras acima é bloqueada.
+    // Firestore já nega por padrão, mas deixar explícito evita surpresas
+    // ao adicionar novas coleções no futuro.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMO CONFIGURAR O CUSTOM CLAIM "admin"
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// As regras usam request.auth.token.admin == true.
+// Você precisa definir esse claim para o usuário admin@emporio.com.
+//
+// PASSO A PASSO:
+//
+// 1. Acesse console.firebase.google.com > emporio-coisas-de-minas
+// 2. Vá em Authentication > Users
+// 3. Anote o UID do usuário admin@emporio.com
+//    (se ainda não criou, crie agora com e-mail/senha)
+//
+// 4. Na raiz do projeto, crie o arquivo set-admin-claim.js:
+//
+//    const admin = require('firebase-admin');
+//    const serviceAccount = require('./service-account.json');
+//
+//    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+//
+//    admin.auth()
+//      .setCustomUserClaims('COLE_O_UID_AQUI', { admin: true })
+//      .then(() => console.log('✅ Claim admin definido!'))
+//      .catch(console.error);
+//
+// 5. Baixe a chave de serviço:
+//    Firebase Console > Configurações do Projeto > Contas de serviço
+//    > Gerar nova chave privada > salve como service-account.json na raiz
+//    ⚠️  NUNCA commite service-account.json no Git!
+//
+// 6. Execute:
+//    npm install firebase-admin --save-dev
+//    node set-admin-claim.js
+//
+// 7. O usuário admin@emporio.com precisará fazer logout e login novamente
+//    para que o token seja atualizado com o novo claim.
+//
+// ALTERNATIVA RÁPIDA (sem Custom Claims — menos segura):
+// Substitua a função isAdmin() por:
+//
+//    function isAdmin() {
+//      return isAuth() && request.auth.token.email == 'admin@emporio.com';
+//    }
+//
+// Funciona imediatamente, sem configuração extra. Porém, depende do e-mail
+// estar verificado — configure "Verificação de e-mail obrigatória" no Auth.
+// ─────────────────────────────────────────────────────────────────────────────

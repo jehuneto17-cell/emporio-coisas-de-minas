@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 const MENU = [
   { icon: 'bag-outline', label: 'Meus Pedidos', badge: '3' },
@@ -23,6 +24,28 @@ const ORDERS = [
 ];
 
 export default function ProfileScreen({ navigation }) {
+  const { user, logout } = useAuth();
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Meu Perfil</Text>
+        </View>
+        <View style={styles.guestState}>
+          <Ionicons name="person-circle-outline" size={80} color={C.border} />
+          <Text style={styles.guestTitle}>Você não está logado</Text>
+          <Text style={styles.guestDesc}>
+            Faça login para acessar seu perfil, pedidos e favoritos.
+          </Text>
+          <TouchableOpacity style={styles.guestBtn} onPress={() => navigation.navigate('Login')}>
+            <Text style={styles.guestBtnText}>Entrar / Criar conta</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
@@ -109,7 +132,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Logout */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => navigation.replace('Login')}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
             <Ionicons name="log-out-outline" size={18} color={C.terra} />
             <Text style={styles.logoutText}>Sair da conta</Text>
           </TouchableOpacity>
@@ -157,4 +180,9 @@ const styles = StyleSheet.create({
   menuBadgeText: { fontSize: 11, color: '#fff', fontFamily: 'WorkSans_700Bold' },
   logoutBtn: { backgroundColor: '#fff5f5', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: '#ffd0d0' },
   logoutText: { fontSize: 15, color: C.terra, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  guestState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 },
+  guestTitle: { fontSize: 20, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', textAlign: 'center' },
+  guestDesc: { fontSize: 14, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center', lineHeight: 22 },
+  guestBtn: { marginTop: 8, height: 50, paddingHorizontal: 32, borderRadius: 12, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' },
+  guestBtnText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
 });

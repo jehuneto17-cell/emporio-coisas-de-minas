@@ -3,15 +3,49 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C } from '../theme';
+import { C, fmt } from '../theme';
+import { useCart } from '../context/CartContext';
+import { useFavorites } from '../context/FavoritesContext';
 
 const WEIGHTS = ['200g', '400g', '600g', '1kg'];
 
+// Dados do produto desta tela (mock).
+// TODO: substituir por route.params.product quando o catálogo vier do backend.
+const PRODUCT_PRICE = 54.9;
+const CART_ITEM = {
+  id: 'i1',
+  name: 'Queijo Canastra Maturado 60 dias',
+  producer: 'Fazenda São João',
+  price: PRODUCT_PRICE,
+  colors: ['#f1dca1', '#a87532'],
+};
+const FAV_ITEM = {
+  id: 'f1',
+  name: 'Queijo Canastra Maturado 60 dias',
+  producer: 'Fazenda São João',
+  price: fmt(PRODUCT_PRICE),
+  rating: '4.9',
+  colors: ['#f1dca1', '#a87532'],
+};
+
 export default function ProductDetailScreen({ navigation, route }) {
-  const [liked, setLiked] = useState(true);
+  const { addItem } = useCart();
+  const { isFavorite, toggleFavorite } = useFavorites();
+
+  const liked = isFavorite(FAV_ITEM.id);
   const [slide, setSlide] = useState(1);
   const [weight, setWeight] = useState('400g');
   const [qty, setQty] = useState(1);
+
+  function handleAddToCart() {
+    addItem({ ...CART_ITEM, weight, qty });
+    // Carrinho é uma aba dentro de Main — precisa de navegação aninhada
+    navigation.navigate('Main', { screen: 'Carrinho' });
+  }
+
+  function handleToggleFavorite() {
+    toggleFavorite(FAV_ITEM);
+  }
 
   return (
     <View style={styles.container}>
@@ -23,7 +57,7 @@ export default function ProductDetailScreen({ navigation, route }) {
               <TouchableOpacity style={styles.heroBtn} onPress={() => navigation.goBack()}>
                 <Ionicons name="chevron-back" size={20} color={C.brown} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.heroBtn} onPress={() => setLiked(!liked)}>
+              <TouchableOpacity style={styles.heroBtn} onPress={handleToggleFavorite}>
                 <Ionicons name={liked ? 'heart' : 'heart-outline'} size={18} color={liked ? C.terra : C.subtle} />
               </TouchableOpacity>
             </View>
@@ -96,7 +130,7 @@ export default function ProductDetailScreen({ navigation, route }) {
       <View style={styles.bottomBar}>
         <View style={styles.totalWrap}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>R$ 54,90</Text>
+          <Text style={styles.totalValue}>{fmt(PRODUCT_PRICE * qty)}</Text>
         </View>
         <View style={styles.qtyRow}>
           <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
@@ -107,7 +141,7 @@ export default function ProductDetailScreen({ navigation, route }) {
             <Ionicons name="add" size={14} color="#fff" />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={() => navigation.navigate('Carrinho')}>
+        <TouchableOpacity style={styles.addBtn} onPress={handleAddToCart}>
           <Text style={styles.addBtnText}>Adicionar</Text>
           <Ionicons name="cart-outline" size={16} color="#fff" />
         </TouchableOpacity>

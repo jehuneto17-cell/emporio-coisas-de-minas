@@ -21,7 +21,7 @@ export default function SplashScreen({ navigation }) {
     Animated.timing(sinceOp,  { toValue: 1, duration: 800, delay: 600, useNativeDriver: true }).start();
     Animated.timing(progress, { toValue: 0.92, duration: 2800, useNativeDriver: false }).start();
 
-    const timer = setTimeout(() => navigation.replace('Login'), 3000);
+    const timer = setTimeout(() => navigation.replace('Main'), 3000);
     return () => clearTimeout(timer);
   }, []);
 

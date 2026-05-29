@@ -5,9 +5,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../theme';
-import { signIn, getAuthErrorMessage } from '../services/auth';
+import { useAuth } from '../context/AuthContext';
+import { getAuthErrorMessage } from '../services/auth';
 
 export default function LoginScreen({ navigation }) {
+  const { login } = useAuth();
   const [tab, setTab] = useState('login');
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
@@ -24,8 +26,12 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setLoadingAuth(true);
     try {
-      await signIn(email.trim(), pwd);
-      // AppNavigator detects the auth state change and redirects automatically
+      await login(email.trim(), pwd);
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.replace('Main');
+      }
     } catch (e) {
       setError(getAuthErrorMessage(e.code));
     } finally {

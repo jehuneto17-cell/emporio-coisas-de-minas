@@ -1,28 +1,26 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
-
-const INITIAL_ITEMS = [
-  { id: 'i1', name: 'Queijo Canastra Maturado 60 dias', producer: 'Fazenda São João', weight: '400g', price: 54.90, qty: 1, colors: ['#f1dca1', '#a87532'] },
-  { id: 'i2', name: 'Café Especial Cerrado', producer: 'Torrefação Mineira', weight: '250g', price: 34.90, qty: 2, colors: ['#c08a55', '#3a1a08'] },
-  { id: 'i3', name: 'Doce de Leite Cremoso', producer: 'Doceria Artesanal', weight: '350g', price: 18.50, qty: 1, sale: 20, colors: ['#e3a96a', '#7a3c0e'] },
-];
+import { useCart } from '../context/CartContext';
 
 export default function CartScreen({ navigation }) {
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [coupon, setCoupon] = useState('CANASTRA10');
-  const [applied, setApplied] = useState(true);
-
-  const setQty = (id, qty) => setItems((arr) => arr.map((x) => x.id === id ? { ...x, qty } : x));
-  const remove = (id) => setItems((arr) => arr.filter((x) => x.id !== id));
-
-  const subtotal = useMemo(() => items.reduce((s, x) => s + x.price * x.qty, 0), [items]);
-  const shipping = items.length ? 15.90 : 0;
-  const discount = applied && items.length ? 11.00 : 0;
-  const total = Math.max(0, subtotal + shipping - discount);
+  const {
+    items,
+    coupon,
+    setCoupon,
+    couponApplied,
+    applyCoupon,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    subtotal,
+    shipping,
+    discount,
+    total,
+  } = useCart();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -32,7 +30,7 @@ export default function CartScreen({ navigation }) {
           <Ionicons name="chevron-back" size={22} color={C.brown} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Meu Carrinho</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => setItems([])}>
+        <TouchableOpacity style={styles.iconBtn} onPress={clearCart}>
           <Ionicons name="trash-outline" size={19} color={C.muted} />
         </TouchableOpacity>
       </View>
@@ -66,18 +64,18 @@ export default function CartScreen({ navigation }) {
                   </View>
                 </View>
                 <View style={styles.itemRight}>
-                  <TouchableOpacity onPress={() => remove(it.id)}>
+                  <TouchableOpacity onPress={() => removeItem(it.id)}>
                     <Ionicons name="close" size={14} color={C.subtle} />
                   </TouchableOpacity>
                   <Text style={styles.itemPrice}>{fmt(it.price * it.qty)}</Text>
                 </View>
               </View>
               <View style={styles.qtyRow}>
-                <TouchableOpacity onPress={() => setQty(it.id, Math.max(1, it.qty - 1))} style={styles.qtyBtn}>
+                <TouchableOpacity onPress={() => updateQuantity(it.id, Math.max(1, it.qty - 1))} style={styles.qtyBtn}>
                   <Ionicons name="remove" size={14} color={C.muted} />
                 </TouchableOpacity>
                 <Text style={styles.qtyNum}>{it.qty}</Text>
-                <TouchableOpacity onPress={() => setQty(it.id, it.qty + 1)} style={[styles.qtyBtn, styles.qtyBtnActive]}>
+                <TouchableOpacity onPress={() => updateQuantity(it.id, it.qty + 1)} style={[styles.qtyBtn, styles.qtyBtnActive]}>
                   <Ionicons name="add" size={14} color="#fff" />
                 </TouchableOpacity>
               </View>
@@ -98,10 +96,10 @@ export default function CartScreen({ navigation }) {
               />
             </View>
             <TouchableOpacity
-              onPress={() => setApplied(coupon.trim().length > 0)}
+              onPress={() => applyCoupon(coupon)}
               style={styles.couponBtn}
             >
-              <Text style={styles.couponBtnText}>{applied ? 'Aplicado' : 'Aplicar'}</Text>
+              <Text style={styles.couponBtnText}>{couponApplied ? 'Aplicado' : 'Aplicar'}</Text>
             </TouchableOpacity>
           </View>
         </View>
