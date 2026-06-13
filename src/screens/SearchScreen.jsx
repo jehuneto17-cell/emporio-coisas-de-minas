@@ -1,22 +1,37 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C } from '../theme';
+import { C, fmt } from '../theme';
+import { getProducts } from '../services/firestore';
 
 const RECENT = ['Queijo Canastra', 'Café Especial', 'Doce de Leite'];
-const POPULAR = ['🧀 Queijos', '☕ Cafés', '🍬 Doces', '🫙 Conservas', '🍷 Cachaças'];
-
-const RESULTS = [
-  { id: 'p1', name: 'Queijo Canastra Maturado', producer: 'Fazenda São João', price: 'R$ 54,90', rating: '4.9', colors: ['#f1dca1', '#a87532'] },
-  { id: 'p2', name: 'Queijo Minas Frescal', producer: 'Fazenda Boa Vista', price: 'R$ 22,90', rating: '4.8', colors: ['#f6e2c0', '#c98a3f'] },
-  { id: 'p3', name: 'Queijo Coalho Artesanal', producer: 'Sítio das Pedras', price: 'R$ 31,00', rating: '4.7', colors: ['#e8d5a0', '#b08040'] },
-];
+const POPULAR = ['🧀 Queijos', '☕ Cafés', '🍬 Doces', '🫙 Conservas', '🍷 Bebidas'];
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
-  const hasResults = query.length > 0;
+  const [allProducts, setAllProducts] = useState([]);
+
+  useEffect(() => {
+    getProducts().then(setAllProducts);
+  }, []);
+
+  const results = useMemo(() => {
+    const term = query.toLowerCase().trim();
+    if (!term) return [];
+    return allProducts.filter(
+      (p) =>
+        p.name?.toLowerCase().includes(term) ||
+        p.producer?.toLowerCase().includes(term) ||
+        p.category?.toLowerCase().includes(term) ||
+        p.categoryLabel?.toLowerCase().includes(term)
+    );
+  }, [query, allProducts]);
+
+  const hasQuery = query.length > 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -44,7 +59,7 @@ export default function SearchScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {!hasResults ? (
+        {!hasQuery ? (
           <>
             {/* Recent */}
             <View style={styles.section}>
@@ -72,23 +87,27 @@ export default function SearchScreen({ navigation }) {
           </>
         ) : (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{RESULTS.length} resultados para "{query}"</Text>
-            {RESULTS.map((p) => (
+            <Text style={styles.sectionTitle}>
+              {results.length > 0
+                ? `${results.length} resultado${results.length !== 1 ? 's' : ''} para "${query}"`
+                : `Nenhum resultado para "${query}"`}
+            </Text>
+            {results.map((p) => (
               <TouchableOpacity
                 key={p.id}
                 style={styles.resultCard}
                 onPress={() => navigation.navigate('ProductDetail', { product: p })}
               >
-                <LinearGradient colors={p.colors} style={styles.resultImg} />
+                <LinearGradient colors={p.colors ?? ['#e0c090', '#a07030']} style={styles.resultImg} />
                 <View style={styles.resultInfo}>
                   <Text style={styles.resultName}>{p.name}</Text>
                   <Text style={styles.resultProducer}>{p.producer}</Text>
                   <View style={styles.resultRating}>
                     <Ionicons name="star" size={11} color={C.ochre} />
-                    <Text style={styles.ratingText}>{p.rating}</Text>
+                    <Text style={styles.ratingText}>{p.rating?.toFixed(1) ?? '—'}</Text>
                   </View>
                 </View>
-                <Text style={styles.resultPrice}>{p.price}</Text>
+                <Text style={styles.resultPrice}>{fmt(p.price)}</Text>
               </TouchableOpacity>
             ))}
           </View>

@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { addOrder } from '../services/firestore';
 
 export default function CheckoutScreen({ navigation }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { items, totalItems, subtotal, discount, couponApplied, clearCart } = useCart();
   const [method, setMethod] = useState('pac');
   const [tab, setTab] = useState('pix');
   const [seconds, setSeconds] = useState(15 * 60);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -23,9 +27,31 @@ export default function CheckoutScreen({ navigation }) {
     return () => clearInterval(t);
   }, []);
 
+  const shippingCost = method === 'pac' ? 15.90 : 28.90;
+  const checkoutTotal = Math.max(0, subtotal - discount + shippingCost);
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-  const shipping = method === 'pac' ? 15.90 : 28.90;
-  const total = 143.20 + shipping - 11.00;
+
+  async function handleConfirm() {
+    setConfirming(true);
+    try {
+      const orderId = await addOrder(user?.uid, {
+        items,
+        subtotal,
+        discount,
+        shipping: shippingCost,
+        total: checkoutTotal,
+        paymentMethod: tab,
+        shippingMethod: method,
+      });
+      clearCart();
+      navigation.navigate('OrderConfirmation', { orderId });
+    } catch (e) {
+      console.warn('[Checkout] addOrder error', e);
+      navigation.navigate('OrderConfirmation', { orderId: null });
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -178,20 +204,27 @@ export default function CheckoutScreen({ navigation }) {
         {/* Summary */}
         <View style={styles.card}>
           <Text style={styles.summaryTitle}>Resumo</Text>
-          <SummaryRow label="3 itens" value={fmt(143.20)} />
-          <SummaryRow label={method === 'pac' ? 'Frete PAC' : 'Frete SEDEX'} value={fmt(shipping)} />
-          <SummaryRow label="Desconto" value={`− ${fmt(11.00)}`} highlight />
+          <SummaryRow label={`${totalItems} ${totalItems === 1 ? 'item' : 'itens'}`} value={fmt(subtotal)} />
+          <SummaryRow label={method === 'pac' ? 'Frete PAC' : 'Frete SEDEX'} value={fmt(shippingCost)} />
+          {couponApplied && <SummaryRow label="Desconto" value={`− ${fmt(discount)}`} highlight />}
           <View style={styles.summaryDivider} />
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{fmt(total)}</Text>
+            <Text style={styles.totalValue}>{fmt(checkoutTotal)}</Text>
           </View>
         </View>
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.confirmBtn} onPress={() => navigation.navigate('OrderConfirmation')}>
-          <Text style={styles.confirmText}>Confirmar Pagamento · {fmt(total)}</Text>
+        <TouchableOpacity
+          style={[styles.confirmBtn, confirming && { opacity: 0.6 }]}
+          onPress={handleConfirm}
+          disabled={confirming}
+        >
+          {confirming
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.confirmText}>Confirmar Pagamento · {fmt(checkoutTotal)}</Text>
+          }
         </TouchableOpacity>
         <View style={styles.secureHint}>
           <Ionicons name="lock-closed-outline" size={11} color={C.subtle} />

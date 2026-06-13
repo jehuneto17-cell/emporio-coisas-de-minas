@@ -20,6 +20,8 @@ import ListingScreen from '../screens/ListingScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
+import SubcategoryScreen from '../screens/SubcategoryScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +89,8 @@ export default function AppNavigator() {
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+      <Stack.Screen name="Subcategory" component={SubcategoryScreen} />
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
     </Stack.Navigator>
   );
 }

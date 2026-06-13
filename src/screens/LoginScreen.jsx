@@ -9,14 +9,34 @@ import { useAuth } from '../context/AuthContext';
 import { getAuthErrorMessage } from '../services/auth';
 
 export default function LoginScreen({ navigation }) {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [tab, setTab] = useState('login');
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
   const [show, setShow] = useState(false);
   const [focus, setFocus] = useState('');
   const [loadingAuth, setLoadingAuth] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState('');
+
+  async function handleGoogleSignIn() {
+    console.log('clicou google');
+    setError('');
+    setLoadingGoogle(true);
+    try {
+      console.log('chamando loginWithGoogle...');
+      await loginWithGoogle();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.replace('Main');
+      }
+    } catch (e) {
+      setError(e.message ?? getAuthErrorMessage(e.code));
+    } finally {
+      setLoadingGoogle(false);
+    }
+  }
 
   async function handleSignIn() {
     if (!email.trim() || !pwd) {
@@ -111,18 +131,23 @@ export default function LoginScreen({ navigation }) {
           </View>
 
           <View style={styles.socialRow}>
-            <SocialBtn label="Google" icon="logo-google" />
+            <SocialBtn label="Google" icon="logo-google" onPress={handleGoogleSignIn} loading={loadingGoogle} />
             <SocialBtn label="Facebook" icon="logo-facebook" />
           </View>
+
+          <TouchableOpacity
+            style={styles.skipBtn}
+            onPress={() => navigation.replace('Main')}
+          >
+            <Text style={styles.skipText}>Continuar navegando sem login →</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.bottomText}>
-          <Text style={styles.bottomCaption}>
-            Não tem conta?{' '}
-            <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
-              Cadastre-se grátis
-            </Text>
-          </Text>
+          <Text style={styles.bottomCaption}>Não tem conta?</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+            <Text style={styles.link}>Cadastre-se grátis</Text>
+          </TouchableOpacity>
         </View>
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -154,10 +179,17 @@ function Field({ label, icon, placeholder, value, onChangeText, secureTextEntry,
   );
 }
 
-function SocialBtn({ label, icon }) {
+function SocialBtn({ label, icon, onPress, loading }) {
   return (
-    <TouchableOpacity style={styles.socialBtn}>
-      <Ionicons name={icon} size={16} color={C.ink} />
+    <TouchableOpacity
+      style={[styles.socialBtn, loading && { opacity: 0.6 }]}
+      onPress={onPress}
+      disabled={loading}
+    >
+      {loading
+        ? <ActivityIndicator size="small" color={C.ink} />
+        : <Ionicons name={icon} size={16} color={C.ink} />
+      }
       <Text style={styles.socialLabel}>{label}</Text>
     </TouchableOpacity>
   );
@@ -211,7 +243,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   socialLabel: { fontSize: 13, color: C.ink, fontFamily: 'WorkSans_600SemiBold' },
-  bottomText: { padding: 20, alignItems: 'center' },
+  skipBtn: { alignItems: 'center', marginTop: 16 },
+  skipText: { fontSize: 13, color: C.subtle, fontFamily: 'WorkSans_400Regular' },
+  bottomText: { padding: 20, alignItems: 'center', gap: 4 },
   bottomCaption: { fontSize: 14, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' },
   link: { color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
 });

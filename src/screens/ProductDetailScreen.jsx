@@ -1,57 +1,66 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
+import { getAllCategories, getSimilarProducts } from '../services/firestore';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 
-const WEIGHTS = ['200g', '400g', '600g', '1kg'];
-
-// Dados do produto desta tela (mock).
-// TODO: substituir por route.params.product quando o catálogo vier do backend.
-const PRODUCT_PRICE = 54.9;
-const CART_ITEM = {
-  id: 'i1',
-  name: 'Queijo Canastra Maturado 60 dias',
-  producer: 'Fazenda São João',
-  price: PRODUCT_PRICE,
-  colors: ['#f1dca1', '#a87532'],
-};
-const FAV_ITEM = {
-  id: 'f1',
-  name: 'Queijo Canastra Maturado 60 dias',
-  producer: 'Fazenda São João',
-  price: fmt(PRODUCT_PRICE),
-  rating: '4.9',
-  colors: ['#f1dca1', '#a87532'],
-};
+const DEFAULT_WEIGHTS = ['200g', '400g', '600g', '1kg'];
 
 export default function ProductDetailScreen({ navigation, route }) {
+  const product = route.params?.product ?? {};
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  const liked = isFavorite(FAV_ITEM.id);
+  const weights = product.weights ?? DEFAULT_WEIGHTS;
   const [slide, setSlide] = useState(1);
-  const [weight, setWeight] = useState('400g');
+  const [weight, setWeight] = useState(weights[1] ?? weights[0]);
   const [qty, setQty] = useState(1);
+  const [catName, setCatName] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const [similares, setSimilares] = useState([]);
+
+  useEffect(() => {
+    if (!product.category) return;
+    getAllCategories()
+      .then(cats => {
+        const found = cats.find(c => c.id === product.category);
+        if (found) setCatName(found.name);
+      })
+      .catch(() => {});
+    getSimilarProducts(product.category, product.id)
+      .then(setSimilares)
+      .catch(() => {});
+  }, [product.id]);
+
+  const liked = isFavorite(product.id);
+  const heroColors = product.colors ?? ['#f1dca1', '#a87532'];
+  const heroImage = (product.images && product.images[0]) || product.imageUrl || null;
 
   function handleAddToCart() {
-    addItem({ ...CART_ITEM, weight, qty });
-    // Carrinho é uma aba dentro de Main — precisa de navegação aninhada
+    addItem({ ...product, weight, qty });
     navigation.navigate('Main', { screen: 'Carrinho' });
   }
 
   function handleToggleFavorite() {
-    toggleFavorite(FAV_ITEM);
+    toggleFavorite(product);
   }
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        {/* Hero Image */}
-        <LinearGradient colors={['#f1dca1', '#a87532']} style={styles.heroImg}>
+        {/* Hero Image — foto real se disponível, gradiente como placeholder */}
+        <LinearGradient colors={heroColors} style={styles.heroImg}>
+          {heroImage && (
+            <Image
+              source={{ uri: heroImage }}
+              style={StyleSheet.absoluteFillObject}
+              resizeMode="cover"
+            />
+          )}
           <SafeAreaView edges={['top']}>
             <View style={styles.heroNav}>
               <TouchableOpacity style={styles.heroBtn} onPress={() => navigation.goBack()}>
@@ -63,7 +72,7 @@ export default function ProductDetailScreen({ navigation, route }) {
             </View>
           </SafeAreaView>
           <View style={styles.dotsRow}>
-            {[0,1,2,3,4].map((i) => (
+            {[0, 1, 2, 3, 4].map((i) => (
               <TouchableOpacity key={i} onPress={() => setSlide(i)}
                 style={[styles.dot, i === slide && styles.dotActive]} />
             ))}
@@ -74,22 +83,26 @@ export default function ProductDetailScreen({ navigation, route }) {
         <View style={styles.infoCard}>
           <View style={styles.infoTopRow}>
             <View style={styles.catBadge}>
-              <Text style={styles.catBadgeText}>🧀 Queijos</Text>
+              <Text style={styles.catBadgeText}>
+                {catName || 'Produto'}
+              </Text>
             </View>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={C.ochre} />
-              <Text style={styles.ratingScore}>4.9</Text>
-              <Text style={styles.ratingCount}>(128 avaliações)</Text>
+              <Text style={styles.ratingScore}>{product.rating?.toFixed(1) ?? '—'}</Text>
+              <Text style={styles.ratingCount}>
+                {product.reviewCount ? `(${product.reviewCount} avaliações)` : ''}
+              </Text>
             </View>
           </View>
 
-          <Text style={styles.productName}>Queijo Canastra Maturado 60 dias</Text>
+          <Text style={styles.productName}>{product.name ?? 'Produto'}</Text>
 
           <View style={styles.producerRow}>
-            <LinearGradient colors={['#c89262', '#5a2b10']} style={styles.producerAvatar} />
+            <LinearGradient colors={[heroColors[0], heroColors[1]]} style={styles.producerAvatar} />
             <View style={styles.producerInfo}>
-              <Text style={styles.producerName}>Fazenda São João</Text>
-              <Text style={styles.producerLocation}>Serra da Canastra · MG</Text>
+              <Text style={styles.producerName}>{product.producer ?? '—'}</Text>
+              <Text style={styles.producerLocation}>{product.location ?? 'Minas Gerais · MG'}</Text>
             </View>
             <View style={styles.verifiedBadge}>
               <Ionicons name="checkmark" size={11} color="#3a7a3a" />
@@ -99,23 +112,45 @@ export default function ProductDetailScreen({ navigation, route }) {
 
           <View style={styles.divider} />
 
-          <Text style={styles.sectionLabel}>Escolha o peso</Text>
-          <View style={styles.weightsRow}>
-            {WEIGHTS.map((w) => (
-              <TouchableOpacity key={w} onPress={() => setWeight(w)}
-                style={[styles.weightBtn, weight === w && styles.weightBtnActive]}>
-                <Text style={[styles.weightBtnText, weight === w && styles.weightBtnTextActive]}>{w}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {weights.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Escolha o peso</Text>
+              <View style={styles.weightsRow}>
+                {weights.map((w) => (
+                  <TouchableOpacity key={w} onPress={() => setWeight(w)}
+                    style={[styles.weightBtn, weight === w && styles.weightBtnActive]}>
+                    <Text style={[styles.weightBtnText, weight === w && styles.weightBtnTextActive]}>{w}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          )}
 
-          <Text style={styles.sectionLabel}>Sobre o produto</Text>
-          <Text style={styles.description}>
-            Queijo artesanal produzido na Serra da Canastra com leite cru integral.
-            Maturado por 60 dias, desenvolve casca firme e interior cremoso com notas
-            de manteiga e ervas nativas...{' '}
-            <Text style={styles.readMore}>Ler mais →</Text>
-          </Text>
+          {(product.description || product.longDesc) && (
+            <>
+              <Text style={styles.sectionLabel}>Sobre o produto</Text>
+              {product.description && (
+                <Text style={styles.description}>{product.description}</Text>
+              )}
+              {product.longDesc && !expanded && (
+                <TouchableOpacity onPress={() => setExpanded(true)} style={styles.lerMaisBtn}>
+                  <Text style={styles.lerMaisText}>Ler mais →</Text>
+                </TouchableOpacity>
+              )}
+              {product.longDesc && expanded && (
+                <>
+                  <View style={{ marginTop: 8 }}>
+                    {product.longDesc.split('\n').filter(l => l.trim()).map((line, i) => (
+                      <Text key={i} style={[styles.description, { marginBottom: 8 }]}>{line.trim()}</Text>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => setExpanded(false)} style={styles.lerMaisBtn}>
+                    <Text style={styles.lerMaisText}>Ler menos ↑</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </>
+          )}
 
           <View style={styles.deliveryCard}>
             <Ionicons name="car-outline" size={16} color={C.terra} />
@@ -123,6 +158,34 @@ export default function ProductDetailScreen({ navigation, route }) {
               Entrega em até <Text style={styles.deliveryBold}>3 dias úteis</Text> · Frete a partir de <Text style={styles.deliveryBold}>R$ 15,90</Text>
             </Text>
           </View>
+
+          {similares.length > 0 && (
+            <>
+              <View style={[styles.divider, { marginTop: 20 }]} />
+              <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>Produtos similares</Text>
+              <View style={styles.similarGrid}>
+                {similares.map(p => {
+                  const img = (p.images && p.images[0]) || p.imageUrl || null;
+                  return (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={styles.similarCard}
+                      onPress={() => navigation.replace('ProductDetail', { product: p })}
+                      activeOpacity={0.85}
+                    >
+                      <LinearGradient colors={p.colors ?? ['#e0c090', '#a07030']} style={styles.similarImg}>
+                        {img && <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />}
+                      </LinearGradient>
+                      <View style={{ padding: 10 }}>
+                        <Text style={styles.similarName} numberOfLines={2}>{p.name}</Text>
+                        <Text style={styles.similarPrice}>{fmt(p.price)}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -130,7 +193,7 @@ export default function ProductDetailScreen({ navigation, route }) {
       <View style={styles.bottomBar}>
         <View style={styles.totalWrap}>
           <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{fmt(PRODUCT_PRICE * qty)}</Text>
+          <Text style={styles.totalValue}>{fmt((product.price ?? 0) * qty)}</Text>
         </View>
         <View style={styles.qtyRow}>
           <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
@@ -149,6 +212,7 @@ export default function ProductDetailScreen({ navigation, route }) {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.cream },
@@ -181,7 +245,8 @@ const styles = StyleSheet.create({
   weightBtnText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_500Medium' },
   weightBtnTextActive: { color: '#fff', fontFamily: 'WorkSans_600SemiBold' },
   description: { fontSize: 14, color: C.muted, lineHeight: 22, fontFamily: 'WorkSans_400Regular', marginBottom: 16 },
-  readMore: { color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
+  lerMaisBtn: { marginTop: 4, marginBottom: 8 },
+  lerMaisText: { fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
   deliveryCard: { backgroundColor: '#f6f3ef', borderRadius: 8, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
   deliveryText: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', flex: 1, lineHeight: 18 },
   deliveryBold: { color: C.brown, fontFamily: 'WorkSans_600SemiBold' },
@@ -195,4 +260,9 @@ const styles = StyleSheet.create({
   qtyNum: { fontSize: 15, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', minWidth: 16, textAlign: 'center' },
   addBtn: { flex: 1, height: 48, borderRadius: 12, backgroundColor: C.terra, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   addBtnText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  similarGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  similarCard:  { width: '47.5%', backgroundColor: C.card, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
+  similarImg:   { width: '100%', aspectRatio: 1 },
+  similarName:  { fontSize: 13, color: C.brown, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 17, marginBottom: 4 },
+  similarPrice: { fontSize: 14, color: C.terra, fontFamily: 'PlusJakartaSans_700Bold' },
 });

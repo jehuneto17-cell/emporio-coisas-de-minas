@@ -2,9 +2,17 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
+import { useAuth } from './AuthContext';
+import {
+  getCartItems,
+  setCartItem,
+  deleteCartItem,
+  clearCartItems,
+} from '../services/firestore';
 
 const CartContext = createContext(null);
 
@@ -13,43 +21,26 @@ const COUPON_CODE = 'CANASTRA10';
 const COUPON_DISCOUNT = 11.0;
 const SHIPPING_FEE = 15.9;
 
-// Itens iniciais (mock) — mantém a UX do protótipo enquanto não há backend.
-// TODO: zerar este array quando o catálogo vier do Firestore.
-const INITIAL_ITEMS = [
-  {
-    id: 'i1',
-    name: 'Queijo Canastra Maturado 60 dias',
-    producer: 'Fazenda São João',
-    weight: '400g',
-    price: 54.9,
-    qty: 1,
-    colors: ['#f1dca1', '#a87532'],
-  },
-  {
-    id: 'i2',
-    name: 'Café Especial Cerrado',
-    producer: 'Torrefação Mineira',
-    weight: '250g',
-    price: 34.9,
-    qty: 2,
-    colors: ['#c08a55', '#3a1a08'],
-  },
-  {
-    id: 'i3',
-    name: 'Doce de Leite Cremoso',
-    producer: 'Doceria Artesanal',
-    weight: '350g',
-    price: 18.5,
-    qty: 1,
-    sale: 20,
-    colors: ['#e3a96a', '#7a3c0e'],
-  },
-];
-
 export function CartProvider({ children }) {
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [coupon, setCoupon] = useState(COUPON_CODE);
-  const [couponApplied, setCouponApplied] = useState(true);
+  const { user } = useAuth();
+  const [items, setItems] = useState([]);
+  const [coupon, setCoupon] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  // true enquanto a leitura inicial do Firestore não terminou (só quando logado).
+  const [hydrating, setHydrating] = useState(false);
+
+  // Hidrata quando o usuário loga; limpa quando desloga (sem deletar do Firestore).
+  useEffect(() => {
+    if (!user) {
+      setItems([]);
+      return;
+    }
+    setHydrating(true);
+    getCartItems(user.uid)
+      .then((data) => setItems(data))
+      .catch((e) => console.warn('[Cart] hydration error', e))
+      .finally(() => setHydrating(false));
+  }, [user]);
 
   // Adiciona um item. Se já existir (mesmo id), soma à quantidade.
   const addItem = useCallback((item) => {
@@ -57,30 +48,41 @@ export function CartProvider({ children }) {
     setItems((arr) => {
       const exists = arr.find((x) => x.id === item.id);
       if (exists) {
-        return arr.map((x) =>
-          x.id === item.id ? { ...x, qty: x.qty + (item.qty ?? 1) } : x
-        );
+        const updated = { ...exists, qty: exists.qty + (item.qty ?? 1) };
+        if (user) setCartItem(user.uid, updated).catch((e) => console.warn('[Cart]', e));
+        return arr.map((x) => x.id === item.id ? updated : x);
       }
-      return [...arr, { ...item, qty: item.qty ?? 1 }];
+      const newItem = { ...item, qty: item.qty ?? 1 };
+      if (user) setCartItem(user.uid, newItem).catch((e) => console.warn('[Cart]', e));
+      return [...arr, newItem];
     });
-  }, []);
+  }, [user]);
 
   const removeItem = useCallback((id) => {
     setItems((arr) => arr.filter((x) => x.id !== id));
-  }, []);
+    if (user) deleteCartItem(user.uid, id).catch((e) => console.warn('[Cart]', e));
+  }, [user]);
 
   // qty <= 0 remove o item.
   const updateQuantity = useCallback((id, qty) => {
     if (qty <= 0) {
       setItems((arr) => arr.filter((x) => x.id !== id));
+      if (user) deleteCartItem(user.uid, id).catch((e) => console.warn('[Cart]', e));
       return;
     }
-    setItems((arr) => arr.map((x) => (x.id === id ? { ...x, qty } : x)));
-  }, []);
+    setItems((arr) => {
+      const item = arr.find((x) => x.id === id);
+      if (!item) return arr;
+      const updated = { ...item, qty };
+      if (user) setCartItem(user.uid, updated).catch((e) => console.warn('[Cart]', e));
+      return arr.map((x) => x.id === id ? updated : x);
+    });
+  }, [user]);
 
   const clearCart = useCallback(() => {
     setItems([]);
-  }, []);
+    if (user) clearCartItems(user.uid).catch((e) => console.warn('[Cart]', e));
+  }, [user]);
 
   // Aplica o cupom. Retorna `true` se válido, `false` caso contrário.
   const applyCoupon = useCallback((code) => {
@@ -112,6 +114,7 @@ export function CartProvider({ children }) {
 
   const value = {
     items,
+    hydrating,
     coupon,
     setCoupon,
     couponApplied,

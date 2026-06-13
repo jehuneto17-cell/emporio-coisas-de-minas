@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C } from '../theme';
+import { C, fmt } from '../theme';
 import { useFavorites } from '../context/FavoritesContext';
 
 export default function FavoritesScreen({ navigation }) {
@@ -34,7 +34,14 @@ export default function FavoritesScreen({ navigation }) {
               onPress={() => navigation.navigate('ProductDetail', { product: p })}
               activeOpacity={0.9}
             >
-              <LinearGradient colors={p.colors} style={styles.cardImg}>
+              <LinearGradient colors={p.colors ?? ['#e0c090', '#a07030']} style={styles.cardImg}>
+                {((p.images && p.images[0]) || p.imageUrl) ? (
+                  <Image
+                    source={{ uri: (p.images && p.images[0]) || p.imageUrl }}
+                    style={StyleSheet.absoluteFillObject}
+                    resizeMode="cover"
+                  />
+                ) : null}
                 {p.sale && (
                   <View style={styles.saleBadge}>
                     <Text style={styles.saleBadgeText}>−{p.sale}%</Text>
@@ -49,7 +56,7 @@ export default function FavoritesScreen({ navigation }) {
                   <Text style={styles.ratingText}>{p.rating}</Text>
                 </View>
                 <View style={styles.cardFooter}>
-                  <Text style={styles.cardPrice}>{p.price}</Text>
+                  <Text style={styles.cardPrice}>{typeof p.price === 'number' ? fmt(p.price) : p.price}</Text>
                   <TouchableOpacity style={styles.cartBtn}>
                     <Ionicons name="cart-outline" size={16} color="#fff" />
                   </TouchableOpacity>

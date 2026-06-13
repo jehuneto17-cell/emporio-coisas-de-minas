@@ -6,7 +6,8 @@ rules_version = '2';
 //
 // Estrutura de coleções esperada:
 //
-//   /products/{productId}            → catálogo de produtos
+//   /banners/{id}                    → banners do carrossel da HomeScreen
+//   /produtos/{productId}            → catálogo de produtos
 //   /users/{uid}                     → perfil do usuário
 //   /users/{uid}/cart/{itemId}       → itens do carrinho
 //   /users/{uid}/favorites/{itemId}  → produtos favoritos
@@ -43,12 +44,22 @@ service cloud.firestore {
     }
 
 
-    // ── /products ─────────────────────────────────────────────────────────────
-    // Qualquer usuário autenticado pode ler o catálogo.
+    // ── /banners ──────────────────────────────────────────────────────────────
+    // Leitura pública — carrossel da HomeScreen visível sem login.
+    // Escrita bloqueada no client; gerenciada pelo painel admin via Console.
+
+    match /banners/{id} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
+
+    // ── /produtos ─────────────────────────────────────────────────────────────
+    // Leitura pública — catálogo visível sem login (app de navegação aberta).
     // Apenas admin pode criar, editar e deletar produtos.
 
-    match /products/{productId} {
-      allow read:             if isAuth();
+    match /produtos/{productId} {
+      allow read:             if true;
       allow create:           if isAdmin()
                                  && hasFields(['name', 'price', 'category']);
       allow update, delete:   if isAdmin();

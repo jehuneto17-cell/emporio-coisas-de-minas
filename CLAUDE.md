@@ -10,7 +10,7 @@
 
 - **Tagline:** "Delícias da Canastra e outros trem…"
 - **Plataformas:** iOS, Android e Web (mesmo código via Expo)
-- **Estado atual:** Protótipo funcional com autenticação real (Firebase Auth) e Firestore configurado em produção. Catálogo de produtos ainda mockado nas telas.
+- **Estado atual:** Protótipo funcional com autenticação real (Firebase Auth), Firestore configurado em produção e serviço `firestore.js` implementado. Telas conectadas ao Firestore. **Sem fallback para dados mock e sem SEED_PRODUCTS** — se a coleção estiver vazia, o app mostra empty state. Para popular o Firestore, use `DB.seedDadosIniciais()` no console do painel admin.
 - **Deploy web:** Vercel (`npx expo export -p web` → publica `dist/`)
 - **Frame web:** No desktop o app aparece dentro de uma moldura 390×844 px simulando um celular; no mobile renderiza em tela cheia
 
@@ -35,6 +35,8 @@
 | Safe area | react-native-safe-area-context | `^5.8.0` |
 | Screens nativos | react-native-screens | `^4.25.2` |
 | Fontes | @expo-google-fonts/plus-jakarta-sans + work-sans | `^0.4.2` |
+| Ícones extras | phosphor-react-native | `latest` |
+| SVG | react-native-svg | SDK 56 compat |
 | **Backend auth** | **Firebase** | **`^12.13.0`** |
 | **Persistência auth** | **@react-native-async-storage/async-storage** | **`2.2.0`** |
 | Estado global | React Context API (3 contextos) | — sem Zustand/Redux |
@@ -62,7 +64,7 @@ emporio-app/
 │   │   └── FavoritesContext.jsx        # favoritos, toggleFavorite, isFavorite
 │   ├── navigation/
 │   │   └── AppNavigator.jsx            # Stack + Tab navigator; proteção de rotas
-│   ├── screens/                        # 14 telas (uma por arquivo .jsx)
+│   ├── screens/                        # 15 telas (uma por arquivo .jsx)
 │   │   ├── SplashScreen.jsx
 │   │   ├── LoginScreen.jsx             # usa useAuth() → login()
 │   │   ├── SignUpScreen.jsx
@@ -76,10 +78,16 @@ emporio-app/
 │   │   ├── ListingScreen.jsx
 │   │   ├── CheckoutScreen.jsx
 │   │   ├── OrderConfirmationScreen.jsx
-│   │   └── OrderTrackingScreen.jsx
-│   ├── services/                       # ← NOVO — Firebase
+│   │   ├── OrderTrackingScreen.jsx
+│   │   ├── SubcategoryScreen.jsx          # subcategorias de uma categoria pai
+│   │   └── EditProfileScreen.jsx          # edição de nome, telefone, data nasc. e endereço de entrega
+│   ├── services/                       # Firebase
 │   │   ├── firebase.js                 # initializeApp + config
-│   │   └── auth.js                     # signIn, signUp, signOut, onAuthStateChanged
+│   │   ├── auth.js                     # signIn, signUp, signOut, onAuthStateChanged
+│   │   └── firestore.js                # getProducts, getProductsByCategory, searchProducts, getProductById, createUserProfile
+│   │                                   # getFavorites, setFavorite, deleteFavorite, clearFavoriteDocs
+│   │                                   # getCartItems, setCartItem, deleteCartItem, clearCartItems
+│   │                                   # getOrder, addOrder
 │   └── theme/
 │       └── index.js                    # Paleta de cores + fmt() (moeda BRL)
 ├── assets/                             # Ícones, logos, splash
@@ -139,17 +147,17 @@ Stack (root) — stack único, sem bifurcação por autenticação
 |---|---|---|---|
 | 1 | **SplashScreen** | Logo com fade-in + spring scale, barra de progresso, fundo `#ede3d8`, "DESDE 2022". Auto-navega para **Main** após ~3 s. | — |
 | 2 | **LoginScreen** | Tabs Login/Cadastro, toggle senha. Chama `login()` do AuthContext; Firebase Auth valida. Após login: `goBack()` ou `replace('Main')`. | `useAuth` |
-| 3 | **SignUpScreen** | Formulário de cadastro. Chama `signUp()` do Firebase. | — |
-| 4 | **HomeScreen** | Carrossel auto-rotativo (4,5 s), 6 chips de categoria, cards com gradiente, preço, avaliação e badge de promoção. | — |
-| 5 | **CategoriesScreen** | Grade de categorias para navegação. | — |
-| 6 | **CartScreen** | Ajuste de quantidade, subtotal + frete (R$ 15,90) + desconto, cupom `CANASTRA10` → R$ 11,00 off, botão limpar. | `useCart` |
-| 7 | **FavoritesScreen** | Lista de favoritos com remoção. Empty state com CTA "Explorar produtos". | `useFavorites` |
+| 3 | **SignUpScreen** | Formulário de cadastro (nome, e-mail, telefone, senha). Valida campos obrigatórios, confirmação de senha e mínimo 6 caracteres. Chama `signup()` do AuthContext; após sucesso, cria documento `/users/{uid}` via `createUserProfile()`. Navega para `Main` com `replace`. | `useAuth` |
+| 4 | **HomeScreen** | Carrossel auto-rotativo (4,5 s), 6 chips de categoria, cards de produto. `ProductCard` exibe `images[0]` ou `imageUrl` do Firestore como fundo do card; gradiente como placeholder quando sem foto. | — |
+| 5 | **CategoriesScreen** | Grade de categorias derivada dinamicamente dos produtos ativos no Firestore. Só exibe categorias com ≥1 produto; empty state se nenhum produto. Visual (emoji, cores) vem de `CAT_META` local; categorias desconhecidas recebem fallback padrão. | — |
+| 6 | **CartScreen** | Ajuste de quantidade, subtotal + frete (R$ 15,90) + desconto, cupom `CANASTRA10` → R$ 11,00 off, botão limpar. Miniatura do item exibe `images[0]` ou `imageUrl`; gradiente como placeholder (com fallback `['#e0c090','#a07030']` quando `colors` ausente). | `useCart` |
+| 7 | **FavoritesScreen** | Lista de favoritos com remoção. Empty state com CTA "Explorar produtos". Card exibe `images[0]` ou `imageUrl`; gradiente como placeholder. Preço formatado com `fmt()`. | `useFavorites` |
 | 8 | **ProfileScreen** | Se logado: avatar com iniciais, stats, menu, pedidos recentes, botão "Sair" → `logout()`. Se visitante: estado vazio com botão "Entrar / Criar conta". | `useAuth` |
-| 9 | **ProductDetailScreen** | Galeria, seletor de peso, quantidade, avaliações, info do produtor. Botão "Adicionar" chama `addItem()` e navega para Carrinho. Coração chama `toggleFavorite()`. | `useCart` + `useFavorites` |
+| 9 | **ProductDetailScreen** | Galeria, seletor de peso, quantidade, avaliações, info do produtor. Botão "Adicionar" chama `addItem()` e navega para Carrinho. Coração chama `toggleFavorite()`. Hero mostra `images[0]` ou `imageUrl` do Firestore; gradiente como placeholder quando sem foto. | `useCart` + `useFavorites` |
 | 10 | **SearchScreen** | Histórico, atalhos de categorias, resultados em tempo real. | — |
 | 11 | **ListingScreen** | Listagem filtrada de produtos. | — |
-| 12 | **CheckoutScreen** | Exibe Modal de auth ao abrir (se visitante): "Entrar / Criar conta" ou "Continuar como visitante". Progress indicator, frete PAC/SEDEX, PIX (countdown 15 min) / Cartão / Boleto. | `useAuth` |
-| 13 | **OrderConfirmationScreen** | Resumo do pedido com itens e preços. | — |
+| 12 | **CheckoutScreen** | Exibe Modal de auth ao abrir (se visitante). Progress indicator, frete PAC/SEDEX (R$15,90/R$28,90), PIX (countdown 15 min) / Cartão / Boleto. Resumo usa valores reais do CartContext (`subtotal`, `totalItems`, `discount`, `couponApplied`). "Confirmar Pagamento" chama `addOrder()`, limpa o carrinho e navega para `OrderConfirmation` passando `orderId`. Endereço ainda é placeholder. | `useAuth` + `useCart` |
+| 13 | **OrderConfirmationScreen** | Recebe `orderId` via `route.params`. Se usuário logado e `orderId` presente: busca o pedido com `getOrder()` e exibe dados reais (número `#XXXXXX`, data, itens, total, método de pagamento). Enquanto carrega: `ActivityIndicator` centralizado. Visitante ou erro: exibe confirmação genérica com dados mock sem quebrar. | `useAuth` |
 | 14 | **OrderTrackingScreen** | Timeline 5 etapas, info transportadora (Correios PAC) + nº rastreio. | — |
 
 ---
@@ -159,7 +167,7 @@ Stack (root) — stack único, sem bifurcação por autenticação
 ### `AuthContext` (`src/context/AuthContext.jsx`)
 
 ```js
-const { user, loading, isAuthenticated, isAdmin, login, signup, logout } = useAuth();
+const { user, loading, isAuthenticated, isAdmin, login, loginWithGoogle, signup, logout } = useAuth();
 ```
 
 | Valor/Função | Tipo | Descrição |
@@ -169,6 +177,7 @@ const { user, loading, isAuthenticated, isAdmin, login, signup, logout } = useAu
 | `isAuthenticated` | `boolean` | Atalho para `!!user` |
 | `isAdmin` | `boolean` | `true` se `user.email === 'emporiominas00@gmail.com'` |
 | `login(email, pwd)` | `Promise` | Chama Firebase `signInWithEmailAndPassword`; lança erro com `code` |
+| `loginWithGoogle()` | `Promise` | `signInWithPopup` + `GoogleAuthProvider` — funciona na web; retorna erro amigável no nativo |
 | `signup(email, pwd)` | `Promise` | Chama Firebase `createUserWithEmailAndPassword` |
 | `logout()` | `Promise` | Chama Firebase `signOut`; AppNavigator redireciona automaticamente |
 
@@ -182,7 +191,8 @@ const { user, loading, isAuthenticated, isAdmin, login, signup, logout } = useAu
 
 ```js
 const {
-  items, coupon, setCoupon, couponApplied,
+  items, hydrating,
+  coupon, setCoupon, couponApplied,
   applyCoupon, removeCoupon,
   addItem, removeItem, updateQuantity, clearCart,
   subtotal, totalItems, shipping, discount, total
@@ -196,8 +206,9 @@ const {
 | `addItem(item)` | Faz dedupe por `id`; se o item já existe, soma a quantidade |
 | `updateQuantity(id, 0)` | Remove o item |
 | `subtotal`, `totalItems`, `shipping`, `discount`, `total` | Calculados via `useMemo` automaticamente |
+| `hydrating` | `true` enquanto a leitura inicial de `/users/{uid}/cart` não terminou |
 
-⚠️ **Carrinho não persiste** — os dados são em memória. Zera ao recarregar o app. `INITIAL_ITEMS` mantém 3 itens mockados para UX do protótipo (remover quando o catálogo vier do Firestore).
+**Persistência:** ao logar, hidrata de `/users/{uid}/cart`. Cada mutação (`addItem`, `removeItem`, `updateQuantity`, `clearCart`) sincroniza com Firestore se `user` estiver presente. Ao deslogar, limpa o state sem apagar o Firestore. Usuário não logado usa memória normalmente.
 
 ---
 
@@ -212,9 +223,9 @@ const {
 ```
 
 - `isFavorite(id)` — retorna `boolean`; usado em `ProductDetailScreen` para o ícone de coração
-- `toggleFavorite(product)` — adiciona se não existe, remove se existe
+- `toggleFavorite(product)` — adiciona se não existe, remove se existe; sincroniza com Firestore se logado
 
-⚠️ **Favoritos não persistem** — mesma situação do carrinho. `INITIAL_FAVORITES` tem 4 itens mock (remover quando vier do Firestore).
+**Persistência:** ao logar, hidrata de `/users/{uid}/favorites`. `toggleFavorite`, `addFavorite`, `removeFavorite` e `clearFavorites` sincronizam com Firestore quando `user` presente. Ao deslogar, limpa o state. Usuário não logado usa memória.
 
 ---
 
@@ -233,17 +244,65 @@ const {
 Regras em `firestore.rules`. Estrutura de coleções esperada:
 
 ```
-/products/{productId}            → catálogo (mock por enquanto)
+/produtos/{productId}            → catálogo de produtos (serviço: firestore.js)
+/categorias/{categoryId}         → categorias gerenciadas pelo painel admin (getCategories em firestore.js)
 /users/{uid}                     → perfil do usuário
-/users/{uid}/cart/{itemId}       → itens do carrinho (TODO: conectar)
-/users/{uid}/favorites/{itemId}  → favoritos (TODO: conectar)
-/users/{uid}/orders/{orderId}    → pedidos (TODO: implementar)
+/users/{uid}/cart/{itemId}       → itens do carrinho
+/users/{uid}/favorites/{itemId}  → favoritos
+/users/{uid}/orders/{orderId}    → pedidos
+```
+
+### Schema de produto (`/produtos/{id}`)
+
+O **painel admin** (`adm coisas de minas/edit-app.jsx`) salva os seguintes campos:
+
+```
+name: string           // "Queijo Canastra Maturado 60 dias"
+description: string    // descrição curta (shortDesc do formulário admin)
+longDesc: string       // descrição completa
+producer: string       // "Fazenda São João"
+location: string       // "Serra da Canastra · MG"
+price: number          // 54.90  (sempre número)
+promo: number | null   // preço promocional em R$ (ex: 46.67); null se sem promoção
+stock: number          // quantidade em estoque
+minStock: number       // estoque mínimo para alerta
+category: string       // "queijos" | "cafes" | "doces" | etc.
+subcategory: string    // subcategoria opcional
+status: string         // "Ativo" | "Inativo" | "Rascunho"
+visible: boolean       // aparece no app
+featured: boolean      // aparece nos destaques da HomeScreen
+allowReviews: boolean
+verified: boolean      // produtor verificado
+tags: string[]
+meta: string           // meta descrição SEO
+initials: string       // 2 primeiras letras do nome (ex: "QC")
+```
+
+O **app mobile** consome via `mapProduct()` em `src/services/firestore.js`, que adapta:
+- `promo` → `sale` (% de desconto calculado: `round((1 - promo/price) * 100)`)
+- `rating` / `reviewCount` → default `0` (ainda não implementado no admin)
+- `weights` / `colors` → default `[]` (opcional; admin não salva ainda)
+- `categoryLabel` → `raw.categoryLabel || raw.category` (admin não salva label ainda)
+- Produtos com `visible: false` ou `status: 'Inativo'` são filtrados automaticamente
+
+### Schema de banner (`/banners/{id}`)
+
+```
+title: string        // título exibido no carrossel (quando sem imageUrl)
+subtitle: string     // subtítulo exibido abaixo do título
+badge: string        // etiqueta no topo (ex: "DESTAQUE DA SEMANA")
+bg: string           // cor hex do gradiente inicial (ex: "#52170c")
+bg2: string          // cor hex do gradiente final (ex: "#6f2c1f")
+imageUrl: string     // URL da imagem de fundo (opcional; sobrepõe o gradiente)
+productId: string    // id do produto para navegar ao tocar (opcional)
+active: boolean      // false = não exibe no app (filtrado por getBanners)
+order: number        // ordem de exibição (crescente)
 ```
 
 ### Regras de Segurança (resumo)
 | Coleção | Leitura | Escrita |
 |---|---|---|
-| `/products` | Qualquer autenticado | Só admin |
+| `/produtos` | **Pública** (sem auth) | Só admin |
 | `/users/{uid}` | Próprio dono + admin | Só dono |
 | `/users/{uid}/cart` | Só dono | Só dono |
 | `/users/{uid}/favorites` | Só dono | Só dono |
@@ -302,7 +361,9 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 - **Telas:** uma por arquivo em `src/screens/NomeScreen.jsx`; registrar em `AppNavigator.jsx`
 - **Logout:** chamar `logout()` do `useAuth()` — nunca `navigation.navigate('Login')` (redireciona automaticamente)
 - **Aba aninhada:** para navegar de um screen do stack raiz para uma aba: `navigation.navigate('Main', { screen: 'Carrinho' })`
-- **Dados mockados:** ainda existem em `CartContext.INITIAL_ITEMS`, `FavoritesContext.INITIAL_FAVORITES` e em várias telas — não persistem
+- **Dados mockados:** ainda existem em `CartContext.INITIAL_ITEMS` e `FavoritesContext.INITIAL_FAVORITES` — não persistem. O catálogo de produtos é gerenciado por `firestore.js` (Firestore sem fallback — empty state se vazio)
+- **Preços:** sempre `number` no Firestore e nos objetos de produto. Use `fmt(p.price)` para exibir. Nunca armazene string "R$ 54,90"
+- **Catálogo:** buscar produtos via funções de `src/services/firestore.js` — nunca hardcode arrays de produtos nas telas
 
 ---
 
@@ -321,26 +382,72 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **LoginScreen** usa `login()` do AuthContext; navega com `goBack()` ou `replace('Main')` após sucesso
 ✅ **ProfileScreen** — estado vazio para visitante com CTA "Entrar / Criar conta"; perfil completo + `logout()` para usuário logado
 ✅ **CheckoutScreen** — modal de autenticação para visitante: "Entrar / Criar conta" ou "Continuar como visitante"
-✅ **ProductDetailScreen** — `addItem()` e `toggleFavorite()` conectados; total calculado com `fmt()`
+✅ **ProductDetailScreen** — usa `route.params.product` com todos os campos reais; `addItem()` e `toggleFavorite()` conectados; total calculado com `fmt()`
 ✅ **Cupom `CANASTRA10`** → R$ 11,00 off (lógica no CartContext)
 ✅ **3 métodos de pagamento** simulados (PIX com countdown, Cartão, Boleto)
 ✅ **Frete** PAC/SEDEX
 ✅ **Timeline de rastreamento** com 5 etapas
 ✅ **Firestore** criado em modo de produção com regras de segurança publicadas
-✅ **Regras do Firestore** — autenticados leem produtos, admin gerencia catálogo, usuário acessa só seus dados
+✅ **Regras do Firestore** — coleção `/produtos` com leitura pública + admin gerencia catálogo; usuário acessa só seus dados
 ✅ **`firebase.json` + `firestore.rules` + `firestore.indexes.json`** versionados no projeto
 ✅ **Deploy web** funcionando no Vercel com moldura de celular em desktop
+✅ **`src/services/firestore.js`** — `getProducts`, `getProductsByCategory`, `searchProducts`, `getProductById`. Sem `SEED_PRODUCTS` nem `seedProducts` — sem dados mock no código do app
+✅ **CategoriesScreen** — lista de categorias 100% dinâmica: derivada dos produtos ativos no Firestore via `buildCategories()`. Só exibe categorias com ≥1 produto. Empty state "Nenhuma categoria disponível ainda" quando Firestore vazio. Array fixo `CATEGORIES` removido; visual (emoji, cores) vem de `CAT_META` local com fallback para categorias novas
+✅ **HomeScreen** — conectada ao Firestore; usa `useFavorites` + `useCart` dos contextos (removido estado local que violava Regra #6)
+✅ **ListingScreen** — conectada ao Firestore com filtro por categoria e ordenação client-side
+✅ **SearchScreen** — busca todos os produtos no mount, filtra localmente ao digitar
+✅ **Coleção renomeada** de `/products` para `/produtos` (inglês → português) nas regras e no serviço
+✅ **Schema reconciliado** — `mapProduct()` adapta campos do painel admin para o formato do app: `promo→sale`, `rating/reviewCount→0`, `weights/colors→[]`, filtro de `visible` e `status`
+✅ **Fallback de dados mock removido** — `fetchAll()` não cai mais em `SEED_PRODUCTS` quando Firestore está vazio; retorna array vazio e as telas exibem empty state
+✅ **ProductDetailScreen** — hero exibe foto real do produto (`images[0]` ou `imageUrl` do Firestore); gradiente `product.colors` mantido como placeholder quando sem foto
+✅ **HomeScreen** — `ProductCard` exibe foto real (`images[0]` ou `imageUrl`) via `Image` com `absoluteFillObject` dentro do `LinearGradient`; gradiente permanece como placeholder quando sem foto. Coração de favorito corrigido: cor cinza (`C.subtle`) quando não favoritado, marrom (`C.brown` = `#52170c`) quando favoritado — conectado a `isFavorite`/`toggleFavorite` do `FavoritesContext`
+✅ **CartScreen** — miniatura de item exibe foto real (`images[0]` ou `imageUrl`); fallback de cores corrigido (`colors ?? ['#e0c090','#a07030']`) para evitar crash quando produto do Firestore não tem `colors`
+✅ **FavoritesContext** — `INITIAL_FAVORITES` (4 produtos mock) removido; favoritos iniciam vazios (`useState([])`)
+✅ **CartContext** — `INITIAL_ITEMS` (3 produtos mock) removido; carrinho inicia vazio (`useState([])`); cupom inicia sem código (`''`) e sem aplicação (`false`)
+✅ **Login com Google** — `auth.js` exporta `signInWithGoogle()` (`GoogleAuthProvider` + `signInWithPopup`; nativo retorna erro amigável sem crashar); `AuthContext` expõe `loginWithGoogle`; `LoginScreen` botão Google conectado com `loadingGoogle` state e mesma lógica de navegação pós-login. `console.log('clicou google')` e `console.log('chamando loginWithGoogle...')` adicionados em `handleGoogleSignIn` para diagnóstico — remover após confirmar funcionamento
+✅ **LoginScreen** — link "Cadastre-se grátis" corrigido: saiu de `<Text onPress>` aninhado (não dispara no Android) para `<TouchableOpacity>` próprio navegando para `SignUp`; link "Continuar navegando sem login →" navega para `Main` via `replace`
+✅ **FavoritesScreen** — card exibe foto real (`images[0]` ou `imageUrl`) com mesmo padrão `absoluteFillObject`; fallback de cores; preço formatado com `fmt()` para produtos reais (número) com compatibilidade para strings legadas
+✅ **SignUpScreen** — bugfix crítico: botão "Criar minha conta grátis" agora chama `signup(email, pwd)` do `useAuth()` (antes navegava para `Main` sem criar usuário). Validações: nome/e-mail/senha obrigatórios, confirmação de senha, mínimo 6 caracteres. Após auth criado, chama `createUserProfile(uid, { name, email, phone })` para gravar `/users/{uid}` no Firestore. Loading state + mensagens de erro em PT-BR via `getAuthErrorMessage`.
+✅ **`createUserProfile(uid, data)`** adicionado em `src/services/firestore.js` — grava `{ name, email, phone, createdAt }` em `/users/{uid}` via `setDoc` + `serverTimestamp()`
+✅ **Persistência de favoritos** — `FavoritesContext` conectado ao Firestore: hidrata de `/users/{uid}/favorites` no login; `toggleFavorite`/`addFavorite`/`removeFavorite`/`clearFavorites` sincronizam com Firestore quando logado; desloga limpa só o state. Funções `getFavorites`, `setFavorite`, `deleteFavorite`, `clearFavoriteDocs` adicionadas ao `firestore.js`
+✅ **Persistência de carrinho** — `CartContext` conectado ao Firestore: hidrata de `/users/{uid}/cart` no login com estado `hydrating`; `addItem`/`removeItem`/`updateQuantity`/`clearCart` sincronizam com Firestore quando logado; desloga limpa só o state. Funções `getCartItems`, `setCartItem`, `deleteCartItem`, `clearCartItems` adicionadas ao `firestore.js`
+✅ **Pedidos salvos no Firestore** — `addOrder(uid, orderData)` grava em `/users/{uid}/orders/{Date.now()}`; `getOrder(uid, orderId)` lê o pedido pelo id. Ambas as funções adicionadas ao `firestore.js`
+✅ **CheckoutScreen conectado ao carrinho real** — usa `useCart()` para `subtotal`, `totalItems`, `discount`, `couponApplied`, `clearCart`; desconto só exibido quando cupom aplicado; `shippingCost`/`checkoutTotal` calculados localmente com base na escolha PAC/SEDEX. Botão "Confirmar Pagamento" chama `addOrder(user?.uid, {...})`, limpa o carrinho e navega para `OrderConfirmation` passando `{ orderId }`. Visitante: pedido não salvo no Firestore mas fluxo segue normalmente
+✅ **OrderConfirmationScreen conectada ao Firestore** — recebe `orderId` via `route.params`; busca pedido com `getOrder()`; exibe número real `#XXXXXX` (últimos 6 dígitos do timestamp), data formatada, itens reais com `fmt(price * qty)`, total real e método de pagamento real. Fallback para dados mock quando visitante, erro ou `orderId` ausente. `ActivityIndicator` durante carregamento
+✅ **Seed do Firestore ajustado** — `seedDadosIniciais()` em `adm coisas de minas/firestore.js` atualizado: produtos agora incluem `visible`, `featured`, `description`, `longDesc`, `producer`, `location`, `imageUrl`, `images`; campo `category` corrigido para minúsculas sem acento (`'queijos'`, `'cafes'`, `'doces'`, `'embutidos'`, `'bebidas'`, `'conservas'`, `'padaria'`, `'mel'`); destaques: QJ-001 e CF-002 com `featured: true`
+✅ **ProfileScreen com dados reais** — nome, e-mail e "Membro desde" exibem dados reais do Firebase Auth + perfil do Firestore; stats conectados a `orders.length` (pedidos reais) e `count` do `FavoritesContext` (favoritos reais); pedidos recentes carregados do Firestore e ordenados por data; `ActivityIndicator` durante carregamento; itens de menu com texto completo (removido `marginLeft: 'auto'` do chevron que causava truncamento)
+✅ **`getUserProfile(uid)`** adicionado em `src/services/firestore.js` — `getDoc` de `/users/{uid}`; retorna dados do perfil ou `null`
+✅ **`getUserOrders(uid)`** adicionado em `src/services/firestore.js` — `getDocs` de `/users/{uid}/orders`; retorna array de pedidos
+✅ **CategoriesScreen conectada à coleção `/categorias`** (2026-06-07) — `getCategories()` adicionado em `firestore.js`: lê `/categorias`, filtra `visible !== false` e sem `parentId`, cruza com produtos ativos para calcular `count`, ordena por `order`. `CategoriesScreen` reescrita para usar `getCategories()` em vez de derivar dos produtos; usa campos `cat.name`, `cat.icon`, `cat.grad` salvos pelo painel admin; gradiente gerado a partir de `cat.grad` via `gradientColors()`; chevron adicionado nos cards
+✅ **HomeScreen — chips de categoria conectados ao Firestore** (2026-06-07) — removido array `CATS` hardcoded; adicionado `useState([])` para `categories` e `useEffect` que chama `getCategories()`; `cat` inicializado com `''`; `CATS.map` substituído por `categories.map` usando `c.icon` e `c.name` do Firestore; toque no chip navega para `Listing` passando o objeto `category` real
+✅ **HomeScreen — carrossel conectado à coleção `/banners`** (2026-06-08) — `const SLIDES` hardcoded removido; `getBanners()` adicionado em `firestore.js` (lê `/banners`, filtra `active !== false`, ordena por `order`); `HomeScreen` carrega banners via `useEffect` + `useState([])`; intervalo do slide usa `banners.length` dinamicamente; bloco JSX do banner substituído: exibe `imageUrl` via `Image absoluteFillObject` quando presente, senão gradiente com `badge`/`title`/`subtitle`; toque no banner navega para `ProductDetail` se `productId` estiver definido; dots refletem quantidade real de banners; banner some se coleção estiver vazia. `getProductById` importado junto
+✅ **HomeScreen — correções visuais do banner com imagem** (2026-06-08) — `bannerCircle` (círculo decorativo de gradiente) suprimido quando banner tem `imageUrl` (evita sobreposição desnecessária); altura do banner aumentada de `minHeight: 152` para `height: 200` para melhor aproveitamento da foto; `padding: 18` removido do estilo `banner` (imagem ocupa 100% via `absoluteFillObject`)
+✅ **ProductDetailScreen — badge de categoria com nome real** (2026-06-08) — badge exibia o ID do Firestore (`product.category`) em vez do nome legível; corrigido com `useEffect` que chama `getAllCategories()` e busca `cats.find(c => c.id === product.category)`; resultado armazenado em `catName`; badge exibe `catName || 'Produto'`; função `getCatEmoji` removida (não mais usada)
+✅ **`getAllCategories()`** adicionado em `src/services/firestore.js` (2026-06-08) — retorna todas as categorias da coleção `/categorias` sem filtro de `parentId` ou `visible`, permitindo resolver o nome de subcategorias pelo `id`; `getCategories()` mantida intacta (usada por `CategoriesScreen` e `HomeScreen`)
+✅ **ProductDetailScreen — descrição completa com "Ler mais / Ler menos"** (2026-06-08) — adicionado estado `expanded`; seção "Sobre o produto" exibe `description` (curta) sempre visível e `longDesc` (completa) expandível via botão "Ler mais →" / "Ler menos ↑"; seção visível quando ao menos um dos campos existe; estilos `lerMaisBtn` e `lerMaisText` adicionados (cor `C.terra`)
+✅ **ProductDetailScreen — longDesc respeita parágrafos** (2026-06-08) — `longDesc` renderizada com `split('\n').filter(l => l.trim()).map(...)`, cada parágrafo em um `<Text>` separado dentro de um `<View>`; linhas em branco ignoradas; `marginBottom: 8` entre parágrafos
+✅ **ProductDetailScreen — seção "Produtos similares"** (2026-06-08) — grade 2 colunas exibida após o card de entrega; busca até 8 produtos da mesma categoria (ou subcategoria) via `getSimilarProducts()`; cada card exibe foto real ou gradiente placeholder (aspectRatio 1:1), nome (2 linhas) e preço; toque usa `navigation.replace('ProductDetail', { product: p })` para navegar entre similares; layout `flexWrap` igual ao estilo da Home
+✅ **`getSimilarProducts(categoryId, excludeId)`** adicionado em `src/services/firestore.js` (2026-06-08) — filtra produtos com `category` ou `subcategory` igual ao `categoryId`, exclui o produto atual pelo `id`, retorna até 8 resultados
+✅ **phosphor-react-native + react-native-svg instalados** (2026-06-13) — `npx expo install phosphor-react-native react-native-svg`; `react-native-svg` já estava presente como módulo nativo compatível com SDK 56; `phosphor-react-native` adicionado com 14 pacotes. Biblioteca disponível para uso em qualquer tela com `import { IconName } from 'phosphor-react-native'`
+✅ **HomeScreen — animação de slide com sobreposição no carrossel** (2026-06-13) — adicionados `nextSlide` (state) e `nextSlideAnim` (Animated.Value ref); `goToSlide` agora roda `Animated.parallel` com ambas as animações simultaneamente (400 ms): banner atual sai para a esquerda enquanto o próximo entra pela direita; ao fim, `slide` é atualizado, `nextSlide` zerado e ambos os valores de animação resetados para 0; estrutura JSX do banner reestruturada com `View overflow:hidden` contendo o banner atual e o próximo (`position:absolute`) renderizados em paralelo durante a transição; guarda `if (next === slideRef.current) return` evita animações duplicadas
+✅ **HomeScreen — fix stale closure no carrossel de banners** (2026-06-13) — adicionado `slideRef = React.useRef(0)` para rastrear o slide atual fora do closure; `goToSlide(next)` atualiza `slideRef.current = next` antes de animar; `setInterval` usa `slideRef.current` em vez de `slide` — elimina o bug onde o carrossel ficava preso no banner inicial
+✅ **HomeScreen — animação de slide horizontal no carrossel de banners** (2026-06-13) — importados `Animated` e `Dimensions` do React Native; adicionados `screenWidth` (largura útil descontando padding) e `slideAnim` (`Animated.Value`); função `goToSlide(next)` anima saída para a esquerda (250 ms), troca o slide, anima entrada da direita (250 ms) via `useNativeDriver: true`; `setInterval` do carrossel atualizado para chamar `goToSlide` em vez de `setSlide` diretamente; `LinearGradient` do banner envolvido em `<Animated.View style={{ transform: [{ translateX: slideAnim }] }}>` para aplicar a translação; dots atualizam via `goToSlide(i)` ao toque
+✅ **CategoriesScreen — ícones Phosphor substituem emoji/gradiente** (2026-06-13) — importados `Jar`, `Cake`, `Pepper`, `FireSimple`, `Bread`, `Wine`, `ShoppingBag` de `phosphor-react-native`; função `getCatIcon(name)` mapeia o nome da categoria para o ícone correspondente com fallback `ShoppingBag`; bloco `LinearGradient + Text emoji` substituído por `View catIconWrap` com fundo `#fdf5ec` e `borderRadius: 12`; import de `LinearGradient` e função `gradientColors` removidos da tela; estilo `catCard` mantido sem `overflow: hidden` (desnecessário sem gradiente)
+✅ **ListingScreen — 3 correções visuais** (2026-06-13) — título agora usa `category?.name || category?.label` (corrige exibição com objetos do Firestore); `paddingTop: 8` adicionado ao `filtersRow` (remove espaço vazio abaixo do header); array `FILTERS` migrado para objetos `{ key, label }` com `.map` e `useMemo` atualizados para usar `.key` (evita corte do chip "Melhor Avaliado")
+✅ **ListingScreen — reescrita completa com FlatList** (2026-06-13) — arquivo reescrito do zero: `ScrollView` substituído por `FlatList` com `numColumns={2}` e `columnWrapperStyle` para grid de 2 colunas sem espaço vazio; filtros também migrados para `FlatList` horizontal; `renderProduct` extraído como função separada; empty state com ícone `cube-outline` adicionado; `setLoading(true)` no início do `useEffect`; `.catch(() => setProducts([]))` adicionado para resiliência; chaves dos filtros migradas para lowercase (`todos`, `vendidos`, `preco`, `maior`)
+✅ **ListingScreen — ajustes de filtro e header** (2026-06-13) — filtro "Melhor Avaliado" substituído por "Maior Preço" (`key: 'maior'`, ordena por `b.price - a.price`); botão de opções no header restaurado com `TouchableOpacity` e ícone `options-outline` (substituía `View` fantasma)
+✅ **HomeScreen — chips de categoria com ícones Phosphor** (2026-06-13) — emojis substituídos por ícones Phosphor (`Jar`, `Cake`, `Pepper`, `FireSimple`, `Bread`, `Wine`, `ShoppingBag`); função `getCatIcon(name, size, color)` adicionada após os imports; cor do ícone muda para `#fff` quando chip ativo (`on = true`); estilo `catEmoji` removido do StyleSheet
+✅ **ListingScreen — foto real nos cards de produto** (2026-06-13) — `Image` adicionado ao import do React Native; dentro do `LinearGradient` de cada card, IIFE renderiza `<Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />` quando `p.images[0]` ou `p.imageUrl` existe; gradiente permanece como placeholder quando sem foto
+✅ **EditProfileScreen** (2026-06-13) — tela `src/screens/EditProfileScreen.jsx` criada: carrega perfil do Firestore via `getUserProfile()`, formulário com campos nome, WhatsApp, data de nascimento (seção "Dados pessoais") e CEP, rua, número, complemento, bairro, cidade, estado (seção "Endereço de entrega"); salva via `updateUserProfile(uid, { merge: true })`; avatar com iniciais e botão "Alterar foto" (UI apenas, sem upload); `KeyboardAvoidingView` para iOS; `ActivityIndicator` durante carga e salvamento. `updateUserProfile(uid, data)` adicionado em `firestore.js` (usa `setDoc` com `merge: true`). Rota `EditProfile` registrada em `AppNavigator.jsx`. Botão lápis no `ProfileScreen` conectado a `navigation.navigate('EditProfile')`
+✅ **Navegação para subcategorias** (2026-06-13) — `getSubcategories(parentId)` adicionado em `firestore.js`: lê `/categorias`, filtra por `parentId` e `visible !== false`, calcula `count` de produtos com `category === parentId && subcategory === c.id`; `SubcategoryScreen.jsx` criada em `src/screens/`: exibe header com botão voltar, card "Todos de {categoria}" no topo que navega para `Listing`, lista de subcategorias com ícones Phosphor e chevron, empty state com CTA direto para `Listing`; subcategoria navega para `Listing` passando `{ ...sub, isSubcategory: true, parentId }`; `AppNavigator.jsx` registra `<Stack.Screen name="Subcategory" component={SubcategoryScreen} />`; `CategoriesScreen` atualizado: `onPress` agora navega para `Subcategory` em vez de `Listing`
 
 ---
 
 ## 11. O Que Ainda Falta
 
-❌ **Catálogo real** — produtos ainda hardcoded em cada tela; coleção `/products` no Firestore está vazia
-❌ **Carrinho não persiste** — `CartContext` usa `INITIAL_ITEMS` mockados; não lê/escreve `/users/{uid}/cart`
-❌ **Favoritos não persistem** — `FavoritesContext` usa `INITIAL_FAVORITES` mockados; não lê/escreve `/users/{uid}/favorites`
-❌ **ProductDetailScreen** — produto hardcoded; não usa `route.params.product`
-❌ **Criação de perfil no signup** — `SignUpScreen` cria o usuário no Firebase Auth mas não cria documento em `/users/{uid}`
-❌ **Pedidos reais** — CheckoutScreen não salva em `/users/{uid}/orders`
+❌ **Seed do Firestore pendente** — coleção `/produtos` ainda vazia em produção. Use `DB.seedDadosIniciais()` no console do painel admin para popular. O seed já inclui todos os campos necessários (`visible`, `featured`, `description`, `longDesc`, `producer`, `location`) e categorias em minúsculas. Sem o seed, as telas exibem empty state
+❌ **Endereço de entrega no Checkout** — `EditProfileScreen` já salva endereço no Firestore em `/users/{uid}.address`; `CheckoutScreen` ainda exibe placeholder hardcoded ("João Silva / Rua das Flores") — falta ler o endereço real do perfil e exibir no resumo do pedido
+❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados; `addOrder` salva o pedido mas não processa pagamento real
 ❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados
 ❌ **Rastreamento real** — timeline estática, sem integração Correios
 ❌ **Admin via Custom Claims** — atualmente por e-mail no token (menos seguro)
@@ -353,31 +460,23 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 
 ## 12. Próximos Passos (ordem de prioridade)
 
-1. **Popular Firestore com produtos reais** — criar coleção `/products` e atualizar `HomeScreen`, `CategoriesScreen`, `ListingScreen` para buscar do Firestore com `getDocs` / `onSnapshot`
+1. **Seed do Firestore** — usar `DB.seedDadosIniciais()` no console do painel admin (campos completos já configurados). Depois administrar produtos pelo painel (`edit-app.jsx`) ou direto no Firebase Console
 
-2. **Persistir carrinho no Firestore** — ao fazer login, carregar `/users/{uid}/cart`; a cada `addItem`/`removeItem`/`updateQuantity`, sincronizar com Firestore
+2. **Endereço de entrega no Checkout** — `EditProfileScreen` já salva endereço em `/users/{uid}.address`; agora falta `CheckoutScreen` ler esse endereço e exibir no resumo, em vez do placeholder hardcoded
 
-3. **Persistir favoritos no Firestore** — mesma abordagem do carrinho em `/users/{uid}/favorites`
+3. **Gateway de pagamento real** — integrar PIX (Mercado Pago ou Pagar.me) e cartão (Stripe ou Asaas)
 
-4. **ProductDetailScreen dinâmica** — aceitar `route.params.product` e usar os dados reais em vez de constantes hardcoded
+4. **Rastreamento Correios** — integrar API dos Correios com o número de rastreio
 
-5. **Criar perfil no signup** — após `createUserWithEmailAndPassword`, gravar documento em `/users/{uid}` com `{ name, email, createdAt }`
+5. **Admin via Custom Claims** — substituir verificação por e-mail por `request.auth.token.admin == true` (mais seguro e escalável)
 
-6. **Salvar pedidos no Firestore** — ao confirmar no `CheckoutScreen`, gravar em `/users/{uid}/orders/{orderId}` com `{ items, total, status: 'pendente', createdAt }`
+6. **TypeScript** — migrar incrementalmente (começar pelos contextos e serviços)
 
-7. **Gateway de pagamento real** — integrar PIX (Mercado Pago ou Pagar.me) e cartão (Stripe ou Asaas)
+7. **ESLint + Prettier** — configuração padrão Expo
 
-8. **Rastreamento Correios** — integrar API dos Correios com o número de rastreio
+8. **Testes** — Jest + React Native Testing Library para CartContext e AuthContext primeiro
 
-9. **Admin via Custom Claims** — substituir verificação por e-mail por `request.auth.token.admin == true` (mais seguro e escalável)
-
-10. **TypeScript** — migrar incrementalmente (começar pelos contextos e serviços)
-
-11. **ESLint + Prettier** — configuração padrão Expo
-
-12. **Testes** — Jest + React Native Testing Library para CartContext e AuthContext primeiro
-
-13. **CI/CD** — GitHub Actions para lint + testes + deploy automático no Vercel
+9. **CI/CD** — GitHub Actions para lint + testes + deploy automático no Vercel
 
 ---
 
@@ -399,7 +498,7 @@ Não escreva código mock de autenticação — use `useAuth()` do AuthContext.
 
 ### 📋 Regra #4 — Não invente Firestore
 Antes de ler ou escrever no Firestore, confirme se a coleção e os campos já existem.
-O catálogo de produtos ainda **não está** no Firestore — não assuma que está.
+O catálogo de produtos usa a coleção `/produtos` — schema documentado na seção 7. Para produtos, use sempre as funções de `src/services/firestore.js`.
 
 ### 🎨 Regra #5 — Use o tema, não hardcode
 - Cores: importe de `src/theme/index.js`

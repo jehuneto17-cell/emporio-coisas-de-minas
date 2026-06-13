@@ -3,6 +3,7 @@ import {
   signIn as authSignIn,
   signUp as authSignUp,
   signOut as authSignOut,
+  signInWithGoogle as authSignInWithGoogle,
   onAuthStateChanged,
 } from '../services/auth';
 
@@ -34,6 +35,11 @@ export function AuthProvider({ children }) {
     return authSignUp(email, password);
   };
 
+  // Login com Google via popup (web) ou erro amigável (nativo).
+  const loginWithGoogle = () => {
+    return authSignInWithGoogle();
+  };
+
   // Logout. O onAuthStateChanged limpa o `user` e o AppNavigator redireciona para Login.
   const logout = () => {
     return authSignOut();
@@ -47,6 +53,7 @@ export function AuthProvider({ children }) {
     isAdmin,
     isAuthenticated: !!user,
     login,
+    loginWithGoogle,
     signup,
     logout,
   };

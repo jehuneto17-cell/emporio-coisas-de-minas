@@ -6,6 +6,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
@@ -31,6 +33,20 @@ export function signOut() {
 
 export function onAuthStateChanged(callback) {
   return firebaseOnAuthStateChanged(auth, callback);
+}
+
+// signInWithPopup funciona apenas na plataforma web (Expo Web / Vercel).
+// No iOS/Android nativo exibiria erro tratado pela tela com mensagem amigável.
+export function signInWithGoogle() {
+  if (Platform.OS !== 'web') {
+    return Promise.reject({
+      code: 'auth/platform-not-supported',
+      message: 'Login com Google disponível apenas na versão web por enquanto.',
+    });
+  }
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return signInWithPopup(auth, provider);
 }
 
 export function getAuthErrorMessage(code) {

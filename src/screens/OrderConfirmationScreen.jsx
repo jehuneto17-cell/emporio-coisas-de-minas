@@ -1,19 +1,60 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C } from '../theme';
+import { C, fmt } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { getOrder } from '../services/firestore';
 
-const ITEMS = [
+// Dados de fallback exibidos para visitantes ou quando o pedido não carrega.
+const ITEMS_MOCK = [
   { name: 'Queijo Canastra Maturado · 400g', price: 'R$ 54,90', colors: ['#efd7a0', '#b88a3e'] },
-  { name: 'Café Especial Cerrado · 250g', price: 'R$ 69,80', colors: ['#8a4f30', '#3a1d0e'] },
-  { name: 'Doce de Leite Cremoso · 350g', price: 'R$ 18,50', colors: ['#e3a96a', '#7a3c0e'], badge: '−20%' },
+  { name: 'Café Especial Cerrado · 250g',    price: 'R$ 69,80', colors: ['#8a4f30', '#3a1d0e'] },
+  { name: 'Doce de Leite Cremoso · 350g',    price: 'R$ 18,50', colors: ['#e3a96a', '#7a3c0e'], badge: '−20%' },
 ];
 
 const STEPS = ['Confirmado', 'Preparando', 'Enviado', 'Entregue'];
 
-export default function OrderConfirmationScreen({ navigation }) {
+function formatDate(ts) {
+  if (!ts) return '—';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+const PAY_LABELS = { card: 'Cartão', boleto: 'Boleto', pix: 'Pix' };
+
+export default function OrderConfirmationScreen({ navigation, route }) {
+  const { orderId } = route.params ?? {};
+  const { user } = useAuth();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!orderId || !user?.uid) {
+      setLoading(false);
+      return;
+    }
+    getOrder(user.uid, orderId)
+      .then((data) => setOrder(data))
+      .catch((e) => console.warn('[OrderConfirmation]', e))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <ActivityIndicator size="large" color={C.brown} style={{ flex: 1 }} />
+      </SafeAreaView>
+    );
+  }
+
+  const displayItems  = order?.items   ?? ITEMS_MOCK;
+  const displayTotal  = order           ? fmt(order.total)           : 'R$ 148,10';
+  const displayNum    = order           ? `#${orderId.slice(-6)}`    : '#1043';
+  const displayDate   = order           ? formatDate(order.createdAt): '24 Mai 2026';
+  const displayMethod = PAY_LABELS[order?.paymentMethod] ?? 'Pix';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -57,13 +98,13 @@ export default function OrderConfirmationScreen({ navigation }) {
           <View style={styles.card}>
             <View style={styles.orderNumWrap}>
               <Text style={styles.orderNumLabel}>Pedido</Text>
-              <Text style={styles.orderNum}>#1043</Text>
+              <Text style={styles.orderNum}>{displayNum}</Text>
             </View>
             <View style={styles.cardDivider} />
             <View style={styles.orderMeta}>
               <View style={styles.metaItem}>
                 <Ionicons name="calendar-outline" size={14} color={C.muted} />
-                <Text style={styles.metaText}>24 Mai 2026</Text>
+                <Text style={styles.metaText}>{displayDate}</Text>
               </View>
               <View style={styles.metaSep} />
               <View style={styles.metaItem}>
@@ -79,25 +120,30 @@ export default function OrderConfirmationScreen({ navigation }) {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Resumo do Pedido</Text>
             <View style={{ gap: 12 }}>
-              {ITEMS.map((it, i) => (
-                <View key={i} style={styles.summaryItem}>
-                  <LinearGradient colors={it.colors} style={styles.itemImg} />
-                  <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
-                  <View style={styles.itemRight}>
-                    {it.badge && (
-                      <View style={styles.itemBadge}>
-                        <Text style={styles.itemBadgeText}>{it.badge}</Text>
-                      </View>
-                    )}
-                    <Text style={styles.itemPrice}>{it.price}</Text>
+              {displayItems.map((it, i) => {
+                const colors  = it.colors?.length ? it.colors : ['#e0c090', '#a07030'];
+                const priceStr = order ? fmt(it.price * (it.qty ?? 1)) : it.price;
+                const badge    = order ? (it.sale > 0 ? `−${it.sale}%` : null) : it.badge;
+                return (
+                  <View key={i} style={styles.summaryItem}>
+                    <LinearGradient colors={colors} style={styles.itemImg} />
+                    <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
+                    <View style={styles.itemRight}>
+                      {badge && (
+                        <View style={styles.itemBadge}>
+                          <Text style={styles.itemBadgeText}>{badge}</Text>
+                        </View>
+                      )}
+                      <Text style={styles.itemPrice}>{priceStr}</Text>
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
             <View style={styles.cardDivider} />
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total pago</Text>
-              <Text style={styles.totalValue}>R$ 148,10</Text>
+              <Text style={styles.totalValue}>{displayTotal}</Text>
             </View>
           </View>
         </View>
@@ -144,7 +190,7 @@ export default function OrderConfirmationScreen({ navigation }) {
           <View style={styles.payCard}>
             <View style={styles.mpLogo}><Text style={styles.mpText}>MP</Text></View>
             <Text style={styles.payLabel}>Mercado Pago</Text>
-            <View style={styles.payBadge}><Text style={styles.payBadgeText}>Pix</Text></View>
+            <View style={styles.payBadge}><Text style={styles.payBadgeText}>{displayMethod}</Text></View>
             <View style={{ flex: 1 }} />
             <View style={styles.approvedBadge}>
               <Text style={styles.approvedText}>Aprovado</Text>

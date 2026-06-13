@@ -1,4 +1,15 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(xargs grep -l \"getReactNativePersistence\")",
+      "Bash(node -e \"const p = require\\('/c/Projetos/Apps/Loja Virtual/Emporio Coisas de Minas/emporio-app/node_modules/@firebase/auth/package.json'\\); console.log\\(JSON.stringify\\(p['react-native'] || p.exports || 'no exports field', null, 2\\)\\)\")",
+      "Bash(npx expo *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(cat /tmp/expo-web.log 2>&1 | tail -30)",
+      "Read(//tmp/**)"
+    ]
+  },
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   }

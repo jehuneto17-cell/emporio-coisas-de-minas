@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -49,7 +49,14 @@ export default function CartScreen({ navigation }) {
           ) : items.map((it) => (
             <View key={it.id} style={styles.itemCard}>
               <View style={styles.itemRow}>
-                <LinearGradient colors={it.colors} style={styles.itemImg}>
+                <LinearGradient colors={it.colors ?? ['#e0c090', '#a07030']} style={styles.itemImg}>
+                  {((it.images && it.images[0]) || it.imageUrl) ? (
+                    <Image
+                      source={{ uri: (it.images && it.images[0]) || it.imageUrl }}
+                      style={StyleSheet.absoluteFillObject}
+                      resizeMode="cover"
+                    />
+                  ) : null}
                   {it.sale && (
                     <View style={styles.saleBadge}>
                       <Text style={styles.saleBadgeText}>−{it.sale}%</Text>

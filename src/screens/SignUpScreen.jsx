@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  Image, StyleSheet, KeyboardAvoidingView, Platform,
+  Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { getAuthErrorMessage } from '../services/auth';
+import { createUserProfile } from '../services/firestore';
 
 export default function SignUpScreen({ navigation }) {
+  const { signup } = useAuth();
   const [tab, setTab] = useState('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -16,6 +20,38 @@ export default function SignUpScreen({ navigation }) {
   const [show1, setShow1] = useState(false);
   const [show2, setShow2] = useState(false);
   const [focus, setFocus] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSignUp() {
+    if (!name.trim() || !email.trim() || !pwd) {
+      setError('Preencha nome, e-mail e senha.');
+      return;
+    }
+    if (pwd.length < 6) {
+      setError('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (pwd !== pwd2) {
+      setError('As senhas não coincidem.');
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      const { user } = await signup(email.trim(), pwd);
+      await createUserProfile(user.uid, {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+      });
+      navigation.replace('Main');
+    } catch (e) {
+      setError(getAuthErrorMessage(e.code));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -63,8 +99,17 @@ export default function SignUpScreen({ navigation }) {
             right={<TouchableOpacity onPress={() => setShow2(!show2)} style={{ padding: 4 }}><Ionicons name={show2 ? 'eye-off-outline' : 'eye-outline'} size={18} color={C.subtle} /></TouchableOpacity>}
           />
 
-          <TouchableOpacity style={styles.ctaBtn} onPress={() => navigation.replace('Main')}>
-            <Text style={styles.ctaBtnText}>Criar minha conta grátis</Text>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <TouchableOpacity
+            style={[styles.ctaBtn, loading && styles.ctaBtnDisabled]}
+            onPress={handleSignUp}
+            disabled={loading}
+          >
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.ctaBtnText}>Criar minha conta grátis</Text>
+            }
           </TouchableOpacity>
 
           <View style={styles.dividerSocial}>
@@ -136,7 +181,9 @@ const styles = StyleSheet.create({
   fieldRow: { height: 48, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
   fieldRowFocused: { borderWidth: 2, borderColor: C.brown },
   input: { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
+  errorText: { fontSize: 13, color: '#c0392b', fontFamily: 'WorkSans_500Medium', marginBottom: 8, textAlign: 'center' },
   ctaBtn: { height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
+  ctaBtnDisabled: { opacity: 0.6 },
   ctaBtnText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
   dividerSocial: { flexDirection: 'row', alignItems: 'center', marginVertical: 18, gap: 10 },
   dividerText: { fontSize: 12, color: C.subtle, fontFamily: 'WorkSans_400Regular' },
