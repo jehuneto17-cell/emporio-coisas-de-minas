@@ -155,6 +155,12 @@ export default function LoginScreen({ navigation }) {
           >
             <Text style={styles.skipText}>Continuar navegando sem login →</Text>
           </TouchableOpacity>
+
+          {request?.redirectUri ? (
+            <Text selectable style={{ fontSize: 10, color: C.subtle, textAlign: 'center', marginTop: 8, paddingHorizontal: 16 }}>
+              {request.redirectUri}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.bottomText}>
