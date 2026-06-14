@@ -24,6 +24,13 @@ export default function LoginScreen({ navigation }) {
     webClientId: '623158539642-d02mnp4ldgfono95kfe2g0nlfucpiglr.apps.googleusercontent.com',
   });
 
+  // Log temporário para descobrir o redirect URI exato
+  useEffect(() => {
+    if (request?.redirectUri) {
+      console.log('[Google Auth] redirectUri:', request.redirectUri);
+    }
+  }, [request]);
+
   useEffect(() => {
     if (response?.type === 'success') {
       const { id_token } = response.params;
