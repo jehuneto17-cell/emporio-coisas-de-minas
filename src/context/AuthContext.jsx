@@ -27,9 +27,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    getGoogleRedirectResult().catch((e) => {
-      console.warn('[Auth] redirect result error', e);
-    });
+    getGoogleRedirectResult()
+      .then((result) => {
+        if (result?.user) {
+          setUser(result.user);
+        }
+      })
+      .catch((e) => {
+        if (e?.code !== 'auth/no-auth-event' && e?.code !== 'auth/argument-error') {
+          console.warn('[Auth] redirect result error', e);
+        }
+      });
   }, []);
 
   // Faz login no Firebase. Lança erro com `code` se falhar — a tela trata a UI.
