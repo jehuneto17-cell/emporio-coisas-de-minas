@@ -2,6 +2,7 @@ import {
   getReactNativePersistence,
   browserLocalPersistence,
   initializeAuth,
+  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -14,11 +15,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import app from './firebase';
 
-const auth = initializeAuth(app, {
-  persistence: Platform.OS === 'web'
-    ? browserLocalPersistence
-    : getReactNativePersistence(AsyncStorage),
-});
+const auth = Platform.OS === 'web'
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
 
 export function signIn(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
