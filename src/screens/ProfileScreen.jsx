@@ -17,7 +17,7 @@ const MENU = [
   { icon: 'card-outline',            label: 'Formas de Pagamento',     screen: null,         target: null },
   { icon: 'heart-outline',           label: 'Favoritos',               screen: 'Favoritos',  target: 'tab' },
   { icon: 'notifications-outline',   label: 'Notificações',            screen: null,         target: null },
-  { icon: 'shield-outline',          label: 'Privacidade e Segurança', screen: null,         target: null },
+  { icon: 'shield-outline',          label: 'Privacidade e Segurança', screen: 'Privacy',    target: 'stack' },
   { icon: 'help-circle-outline',     label: 'Ajuda e Suporte',         screen: 'Help',       target: 'stack' },
   { icon: 'star-outline',            label: 'Avaliar o App',           screen: null,         target: null },
 ];

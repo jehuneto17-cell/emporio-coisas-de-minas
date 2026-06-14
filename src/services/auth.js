@@ -8,6 +8,10 @@ import {
   onAuthStateChanged as firebaseOnAuthStateChanged,
   GoogleAuthProvider,
   signInWithCredential,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
@@ -47,6 +51,18 @@ export async function signInWithGoogleCredential(idToken) {
 
 export function getGoogleRedirectResult() {
   return Promise.resolve(null);
+}
+
+export function sendPasswordResetEmail(email) {
+  return firebaseSendPasswordResetEmail(auth, email);
+}
+
+export async function deleteAccount(password) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Usuário não autenticado.');
+  const credential = EmailAuthProvider.credential(user.email, password);
+  await reauthenticateWithCredential(user, credential);
+  await deleteUser(user);
 }
 
 export function getAuthErrorMessage(code) {

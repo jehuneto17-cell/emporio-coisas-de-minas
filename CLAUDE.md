@@ -82,7 +82,8 @@ emporio-app/
 │   │   ├── SubcategoryScreen.jsx          # subcategorias de uma categoria pai
 │   │   ├── EditProfileScreen.jsx          # edição de nome, telefone, data nasc. e endereço de entrega
 │   │   ├── MyOrdersScreen.jsx             # lista de pedidos com filtros por status
-│   │   └── HelpScreen.jsx                 # FAQ em acordeão + botão WhatsApp para suporte
+│   │   ├── HelpScreen.jsx                 # FAQ em acordeão + botão WhatsApp para suporte
+│   │   └── PrivacyScreen.jsx              # redefinir senha, política de privacidade LGPD, excluir conta
 │   ├── services/                       # Firebase
 │   │   ├── firebase.js                 # initializeApp + config
 │   │   ├── auth.js                     # signIn, signUp, signOut, onAuthStateChanged
@@ -450,6 +451,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Google Login reimplementado com expo-auth-session** (2026-06-14) — `expo-auth-session`, `expo-crypto` e `expo-web-browser` instalados; `src/services/auth.js` reescrito: remove `signInWithRedirect`/`getRedirectResult`/`signInWithGoogle`, adiciona `signInWithGoogleCredential(idToken)` (usa `GoogleAuthProvider.credential` + `signInWithCredential`), `WebBrowser.maybeCompleteAuthSession()` no topo; `src/screens/LoginScreen.jsx`: adiciona `Google.useAuthRequest({ webClientId })`, `useEffect` que processa `response` e chama `signInWithGoogleCredential`, `handleGoogleSignIn` simplificado para `promptAsync()`; `src/context/AuthContext.jsx`: remove `signInWithGoogle`, `getGoogleRedirectResult` e `useEffect` de redirect — `loginWithGoogle` removido do contexto; `app.json` atualizado com plugin `expo-web-browser` (adicionado pelo `expo install`)
 ✅ **Fix: captura correta do id_token do Google na web via expo-auth-session** (2026-06-14) — `useEffect` que processa `response` atualizado: `id_token` agora buscado com fallback `response.params?.id_token ?? response.authentication?.idToken` para cobrir diferenças de comportamento entre web e nativo; erro explícito exibido quando token não está presente em nenhum dos caminhos
 ✅ **Fix: Google Auth configurado com responseType id_token para funcionar na web** (2026-06-14) — `Google.useAuthRequest` atualizado com `responseType: 'id_token'` e `usePKCE: false`; necessário na web para que o Google retorne o `id_token` diretamente nos `response.params` em vez de um `code` que exigiria troca server-side
+✅ **PrivacyScreen** (2026-06-14) — tela `src/screens/PrivacyScreen.jsx` criada com 3 seções: (1) "Segurança da conta" com ações "Redefinir senha" (modal que chama `sendPasswordResetEmail` do Firebase e exibe feedback de sucesso) e "Excluir minha conta" (modal com reautenticação por senha via `reauthenticateWithCredential` + `deleteUser`, seguido de `logout()`); (2) "Política de Privacidade" em acordeão com 6 tópicos cobrindo coleta de dados, uso, armazenamento, direitos LGPD, cookies e contato; (3) nota de rodapé sobre LGPD. `sendPasswordResetEmail(email)` e `deleteAccount(password)` adicionados em `src/services/auth.js`. Rota `Privacy` registrada no `AppNavigator.jsx`. Item "Privacidade e Segurança" no array `MENU` do `ProfileScreen` atualizado para `screen: 'Privacy', target: 'stack'`
 
 ---
 
