@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
 import { C } from '../theme';
 import { useAuth } from '../context/AuthContext';
-import { getAuthErrorMessage } from '../services/auth';
+import { getAuthErrorMessage, signInWithGoogleCredential } from '../services/auth';
 
 export default function LoginScreen({ navigation }) {
-  const { login, loginWithGoogle } = useAuth();
+  const { login } = useAuth();
   const [tab, setTab] = useState('login');
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
@@ -19,23 +20,29 @@ export default function LoginScreen({ navigation }) {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleGoogleSignIn() {
-    console.log('clicou google');
-    setError('');
-    setLoadingGoogle(true);
-    try {
-      console.log('chamando loginWithGoogle...');
-      await loginWithGoogle();
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.replace('Main');
-      }
-    } catch (e) {
-      setError(e.message ?? getAuthErrorMessage(e.code));
-    } finally {
-      setLoadingGoogle(false);
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: '623158539642-d02mnp4ldgfono95kfe2g0nlfucpiglr.apps.googleusercontent.com',
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      setLoadingGoogle(true);
+      signInWithGoogleCredential(id_token)
+        .then(() => {
+          if (navigation.canGoBack()) navigation.goBack();
+          else navigation.replace('Main');
+        })
+        .catch((e) => setError(getAuthErrorMessage(e.code)))
+        .finally(() => setLoadingGoogle(false));
+    } else if (response?.type === 'error') {
+      setError('Erro ao autenticar com Google. Tente novamente.');
     }
+  }, [response]);
+
+  async function handleGoogleSignIn() {
+    setError('');
+    await promptAsync();
   }
 
   async function handleSignIn() {

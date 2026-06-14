@@ -1,6 +1,5 @@
 import {
   getReactNativePersistence,
-  browserLocalPersistence,
   initializeAuth,
   getAuth,
   signInWithEmailAndPassword,
@@ -8,18 +7,22 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithCredential,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import app from './firebase';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const auth = Platform.OS === 'web'
   ? getAuth(app)
   : initializeAuth(app, {
       persistence: getReactNativePersistence(AsyncStorage),
     });
+
+export { auth };
 
 export function signIn(email, password) {
   return signInWithEmailAndPassword(auth, email, password);
@@ -37,20 +40,13 @@ export function onAuthStateChanged(callback) {
   return firebaseOnAuthStateChanged(auth, callback);
 }
 
-export function signInWithGoogle() {
-  if (Platform.OS !== 'web') {
-    return Promise.reject({
-      code: 'auth/platform-not-supported',
-      message: 'Login com Google disponível apenas na versão web por enquanto.',
-    });
-  }
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  return signInWithRedirect(auth, provider);
+export async function signInWithGoogleCredential(idToken) {
+  const credential = GoogleAuthProvider.credential(idToken);
+  return signInWithCredential(auth, credential);
 }
 
 export function getGoogleRedirectResult() {
-  return getRedirectResult(auth);
+  return Promise.resolve(null);
 }
 
 export function getAuthErrorMessage(code) {
@@ -64,6 +60,10 @@ export function getAuthErrorMessage(code) {
     'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
     'auth/network-request-failed': 'Erro de conexão. Verifique sua internet.',
     'auth/user-disabled': 'Esta conta foi desativada.',
+    'auth/argument-error': 'Erro ao iniciar login com Google. Tente novamente.',
+    'auth/popup-blocked': 'O popup foi bloqueado pelo navegador.',
+    'auth/popup-closed-by-user': 'Login cancelado.',
+    'auth/platform-not-supported': 'Login com Google disponível apenas na versão web.',
   };
   return messages[code] ?? 'Erro ao autenticar. Tente novamente.';
 }
