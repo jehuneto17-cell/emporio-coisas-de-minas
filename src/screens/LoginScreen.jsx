@@ -33,9 +33,13 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     if (response?.type === 'success') {
-      const { id_token } = response.params;
+      const idToken = response.params?.id_token ?? response.authentication?.idToken;
+      if (!idToken) {
+        setError('Não foi possível obter o token do Google. Tente novamente.');
+        return;
+      }
       setLoadingGoogle(true);
-      signInWithGoogleCredential(id_token)
+      signInWithGoogleCredential(idToken)
         .then(() => {
           if (navigation.canGoBack()) navigation.goBack();
           else navigation.replace('Main');
