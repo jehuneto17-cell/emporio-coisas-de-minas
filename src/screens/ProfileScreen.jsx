@@ -12,14 +12,14 @@ import { useFavorites } from '../context/FavoritesContext';
 import { getUserProfile, getUserOrders } from '../services/firestore';
 
 const MENU = [
-  { icon: 'bag-outline', label: 'Meus Pedidos' },
-  { icon: 'location-outline', label: 'Endereços' },
-  { icon: 'card-outline', label: 'Formas de Pagamento' },
-  { icon: 'heart-outline', label: 'Favoritos' },
-  { icon: 'notifications-outline', label: 'Notificações' },
-  { icon: 'shield-outline', label: 'Privacidade e Segurança' },
-  { icon: 'help-circle-outline', label: 'Ajuda e Suporte' },
-  { icon: 'star-outline', label: 'Avaliar o App' },
+  { icon: 'bag-outline',             label: 'Meus Pedidos',            screen: 'MyOrders',  target: 'stack' },
+  { icon: 'location-outline',        label: 'Endereços',               screen: null,         target: null },
+  { icon: 'card-outline',            label: 'Formas de Pagamento',     screen: null,         target: null },
+  { icon: 'heart-outline',           label: 'Favoritos',               screen: 'Favoritos',  target: 'tab' },
+  { icon: 'notifications-outline',   label: 'Notificações',            screen: null,         target: null },
+  { icon: 'shield-outline',          label: 'Privacidade e Segurança', screen: null,         target: null },
+  { icon: 'help-circle-outline',     label: 'Ajuda e Suporte',         screen: 'Help',       target: 'stack' },
+  { icon: 'star-outline',            label: 'Avaliar o App',           screen: null,         target: null },
 ];
 
 function getInitials(name) {
@@ -197,6 +197,11 @@ export default function ProfileScreen({ navigation }) {
               <TouchableOpacity
                 key={i}
                 style={[styles.menuItem, i < MENU.length - 1 && styles.menuItemBorder]}
+                onPress={() => {
+                  if (!item.screen) return;
+                  if (item.target === 'tab') navigation.navigate('Main', { screen: item.screen });
+                  else navigation.navigate(item.screen);
+                }}
               >
                 <View style={styles.menuIconWrap}>
                   <Ionicons name={item.icon} size={20} color={C.brown} />

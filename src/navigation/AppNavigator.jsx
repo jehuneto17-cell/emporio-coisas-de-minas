@@ -22,6 +22,8 @@ import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
 import SubcategoryScreen from '../screens/SubcategoryScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
+import MyOrdersScreen from '../screens/MyOrdersScreen';
+import HelpScreen from '../screens/HelpScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -91,6 +93,8 @@ export default function AppNavigator() {
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
       <Stack.Screen name="Subcategory" component={SubcategoryScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
+      <Stack.Screen name="Help" component={HelpScreen} />
     </Stack.Navigator>
   );
 }

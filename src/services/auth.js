@@ -7,7 +7,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
@@ -35,8 +36,6 @@ export function onAuthStateChanged(callback) {
   return firebaseOnAuthStateChanged(auth, callback);
 }
 
-// signInWithPopup funciona apenas na plataforma web (Expo Web / Vercel).
-// No iOS/Android nativo exibiria erro tratado pela tela com mensagem amigável.
 export function signInWithGoogle() {
   if (Platform.OS !== 'web') {
     return Promise.reject({
@@ -46,7 +45,11 @@ export function signInWithGoogle() {
   }
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
-  return signInWithPopup(auth, provider);
+  return signInWithRedirect(auth, provider);
+}
+
+export function getGoogleRedirectResult() {
+  return getRedirectResult(auth);
 }
 
 export function getAuthErrorMessage(code) {

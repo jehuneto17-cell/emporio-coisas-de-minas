@@ -4,6 +4,7 @@ import {
   signUp as authSignUp,
   signOut as authSignOut,
   signInWithGoogle as authSignInWithGoogle,
+  getGoogleRedirectResult,
   onAuthStateChanged,
 } from '../services/auth';
 
@@ -23,6 +24,12 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    getGoogleRedirectResult().catch((e) => {
+      console.warn('[Auth] redirect result error', e);
+    });
   }, []);
 
   // Faz login no Firebase. Lança erro com `code` se falhar — a tela trata a UI.

@@ -64,7 +64,7 @@ emporio-app/
 │   │   └── FavoritesContext.jsx        # favoritos, toggleFavorite, isFavorite
 │   ├── navigation/
 │   │   └── AppNavigator.jsx            # Stack + Tab navigator; proteção de rotas
-│   ├── screens/                        # 15 telas (uma por arquivo .jsx)
+│   ├── screens/                        # 16 telas (uma por arquivo .jsx)
 │   │   ├── SplashScreen.jsx
 │   │   ├── LoginScreen.jsx             # usa useAuth() → login()
 │   │   ├── SignUpScreen.jsx
@@ -80,7 +80,9 @@ emporio-app/
 │   │   ├── OrderConfirmationScreen.jsx
 │   │   ├── OrderTrackingScreen.jsx
 │   │   ├── SubcategoryScreen.jsx          # subcategorias de uma categoria pai
-│   │   └── EditProfileScreen.jsx          # edição de nome, telefone, data nasc. e endereço de entrega
+│   │   ├── EditProfileScreen.jsx          # edição de nome, telefone, data nasc. e endereço de entrega
+│   │   ├── MyOrdersScreen.jsx             # lista de pedidos com filtros por status
+│   │   └── HelpScreen.jsx                 # FAQ em acordeão + botão WhatsApp para suporte
 │   ├── services/                       # Firebase
 │   │   ├── firebase.js                 # initializeApp + config
 │   │   ├── auth.js                     # signIn, signUp, signOut, onAuthStateChanged
@@ -440,6 +442,10 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **ListingScreen — foto real nos cards de produto** (2026-06-13) — `Image` adicionado ao import do React Native; dentro do `LinearGradient` de cada card, IIFE renderiza `<Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />` quando `p.images[0]` ou `p.imageUrl` existe; gradiente permanece como placeholder quando sem foto
 ✅ **EditProfileScreen** (2026-06-13) — tela `src/screens/EditProfileScreen.jsx` criada: carrega perfil do Firestore via `getUserProfile()`, formulário com campos nome, WhatsApp, data de nascimento (seção "Dados pessoais") e CEP, rua, número, complemento, bairro, cidade, estado (seção "Endereço de entrega"); salva via `updateUserProfile(uid, { merge: true })`; avatar com iniciais e botão "Alterar foto" (UI apenas, sem upload); `KeyboardAvoidingView` para iOS; `ActivityIndicator` durante carga e salvamento. `updateUserProfile(uid, data)` adicionado em `firestore.js` (usa `setDoc` com `merge: true`). Rota `EditProfile` registrada em `AppNavigator.jsx`. Botão lápis no `ProfileScreen` conectado a `navigation.navigate('EditProfile')`
 ✅ **Navegação para subcategorias** (2026-06-13) — `getSubcategories(parentId)` adicionado em `firestore.js`: lê `/categorias`, filtra por `parentId` e `visible !== false`, calcula `count` de produtos com `category === parentId && subcategory === c.id`; `SubcategoryScreen.jsx` criada em `src/screens/`: exibe header com botão voltar, card "Todos de {categoria}" no topo que navega para `Listing`, lista de subcategorias com ícones Phosphor e chevron, empty state com CTA direto para `Listing`; subcategoria navega para `Listing` passando `{ ...sub, isSubcategory: true, parentId }`; `AppNavigator.jsx` registra `<Stack.Screen name="Subcategory" component={SubcategoryScreen} />`; `CategoriesScreen` atualizado: `onPress` agora navega para `Subcategory` em vez de `Listing`
+✅ **ProfileScreen — navegação ao item Favoritos no menu do perfil** (2026-06-14) — array `MENU` atualizado com campo `screen` em cada item (`null` para itens sem tela, `'Favoritos'` para o item de favoritos); `TouchableOpacity` do menu recebe `onPress` que chama `navigation.navigate('Main', { screen: item.screen })` quando `item.screen` está definido; demais itens (Pedidos, Endereços, Pagamento, Notificações etc.) permanecem com `screen: null` e não navegam até serem implementados
+✅ **HelpScreen** (2026-06-14) — FAQ em acordeão (8 perguntas frequentes) com toggle de abertura/fechamento por item; botão WhatsApp abre `wa.me` com mensagem pré-preenchida; registrada no `AppNavigator` como `<Stack.Screen name="Help">`; item "Ajuda e Suporte" no array `MENU` do `ProfileScreen` atualizado para `screen: 'Help', target: 'stack'`
+✅ **MyOrdersScreen + navegação no menu do ProfileScreen** (2026-06-14) — `src/screens/MyOrdersScreen.jsx` criada: lista todos os pedidos do usuário (`getUserOrders`) com filtros por status (Todos / Pendente / Em Transporte / Entregue); cada card exibe ID curto, data, badge de status colorido, contagem de itens, método de pagamento, total e link "Rastrear pedido"; estados de loading, vazio (com CTA "Explorar produtos") e visitante não logado. Registrada no `AppNavigator` como `<Stack.Screen name="MyOrders">`. Array `MENU` do `ProfileScreen` atualizado com campo `target: 'stack' | 'tab' | null`; `onPress` diferencia `stack` (`navigation.navigate(screen)`) de `tab` (`navigation.navigate('Main', { screen })`) para rotear corretamente
+✅ **Google Login: signInWithPopup → signInWithRedirect** (2026-06-14) — `src/services/auth.js` atualizado: import de `signInWithPopup` trocado por `signInWithRedirect` + `getRedirectResult`; `signInWithGoogle` agora chama `signInWithRedirect`; nova função `getGoogleRedirectResult()` exportada. `src/context/AuthContext.jsx` atualizado: importa `getGoogleRedirectResult`; `useEffect` adicionado para capturar o resultado do redirect ao montar o provider (compatibilidade com navegadores mobile que bloqueiam popups)
 
 ---
 
