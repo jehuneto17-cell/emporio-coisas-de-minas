@@ -22,6 +22,8 @@ export default function LoginScreen({ navigation }) {
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: '623158539642-d02mnp4ldgfono95kfe2g0nlfucpiglr.apps.googleusercontent.com',
+    responseType: 'id_token',
+    usePKCE: false,
   });
 
   // Log temporário para descobrir o redirect URI exato
