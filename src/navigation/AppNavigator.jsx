@@ -25,6 +25,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import MyOrdersScreen from '../screens/MyOrdersScreen';
 import HelpScreen from '../screens/HelpScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -97,6 +98,7 @@ export default function AppNavigator() {
       <Stack.Screen name="MyOrders" component={MyOrdersScreen} />
       <Stack.Screen name="Help" component={HelpScreen} />
       <Stack.Screen name="Privacy" component={PrivacyScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
     </Stack.Navigator>
   );
 }
