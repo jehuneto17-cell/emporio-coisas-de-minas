@@ -6,12 +6,14 @@ rules_version = '2';
 //
 // Estrutura de coleções esperada:
 //
-//   /banners/{id}                    → banners do carrossel da HomeScreen
-//   /produtos/{productId}            → catálogo de produtos
-//   /users/{uid}                     → perfil do usuário
-//   /users/{uid}/cart/{itemId}       → itens do carrinho
-//   /users/{uid}/favorites/{itemId}  → produtos favoritos
-//   /users/{uid}/orders/{orderId}    → histórico de pedidos
+//   /banners/{id}                        → banners do carrossel da HomeScreen
+//   /produtos/{productId}                → catálogo de produtos
+//   /users/{uid}                         → perfil do usuário
+//   /users/{uid}/cart/{itemId}           → itens do carrinho
+//   /users/{uid}/favorites/{itemId}      → produtos favoritos
+//   /users/{uid}/orders/{orderId}        → histórico de pedidos
+//   /users/{uid}/addresses/{addressId}   → endereços de entrega
+//   /users/{uid}/settings/{settingId}    → preferências (notificações, etc.)
 //
 // Admin: identificado por Custom Claim  { admin: true }
 // (veja instruções abaixo para configurar o claim)
@@ -95,6 +97,17 @@ service cloud.firestore {
                          && hasFields(['items', 'total', 'status', 'createdAt']);
         allow update: if isAdmin();
         allow delete: if false;
+      }
+
+      // ── Endereços (/users/{uid}/addresses) ───────────────────────────────
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // ── Configurações (/users/{uid}/settings) ────────────────────────────
+      // Inclui preferências de notificações e outros ajustes do usuário.
+      match /settings/{settingId} {
+        allow read, write: if isOwner(uid);
       }
     }
 
