@@ -94,6 +94,7 @@ export default function AddressesScreen({ navigation }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  const [confirmId, setConfirmId] = useState(null);
   const slideAnim = useRef(new Animated.Value(600)).current;
 
   useEffect(() => {
@@ -178,26 +179,19 @@ export default function AddressesScreen({ navigation }) {
     }
   }
 
-  async function handleDelete(id) {
-    const confirmed = Platform.OS === 'web'
-      ? window.confirm('Deseja remover este endereço?')
-      : await new Promise(resolve =>
-          Alert.alert(
-            'Excluir endereço',
-            'Tem certeza que deseja remover este endereço?',
-            [
-              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Excluir', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          )
-        );
-    if (!confirmed) return;
+  function handleDelete(id) {
+    setConfirmId(id);
+  }
+
+  async function confirmDelete() {
+    if (!confirmId) return;
     try {
-      await deleteAddress(user.uid, id);
-      setAddresses(prev => prev.filter(a => a.id !== id));
+      await deleteAddress(user.uid, confirmId);
+      setAddresses(prev => prev.filter(a => a.id !== confirmId));
     } catch (e) {
       console.warn('[Delete] erro:', e);
-      Alert.alert('Erro', 'Não foi possível excluir o endereço.');
+    } finally {
+      setConfirmId(null);
     }
   }
 
@@ -293,6 +287,27 @@ export default function AddressesScreen({ navigation }) {
           )}
         </ScrollView>
       )}
+
+      {/* Modal de confirmação de exclusão */}
+      <Modal visible={!!confirmId} transparent animationType="fade" onRequestClose={() => setConfirmId(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmBox}>
+            <View style={styles.confirmIconWrap}>
+              <Ionicons name="trash-outline" size={28} color="#c0392b" />
+            </View>
+            <Text style={styles.confirmTitle}>Excluir endereço</Text>
+            <Text style={styles.confirmDesc}>Tem certeza que deseja remover este endereço?</Text>
+            <View style={styles.confirmBtns}>
+              <TouchableOpacity style={styles.confirmCancel} onPress={() => setConfirmId(null)}>
+                <Text style={styles.confirmCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDelete} onPress={confirmDelete}>
+                <Text style={styles.confirmDeleteText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal de form */}
       <Modal transparent visible={modalVisible} animationType="none" onRequestClose={closeModal}>
@@ -460,4 +475,16 @@ const styles = StyleSheet.create({
   row:                  { flexDirection: 'row', gap: 10 },
   saveBtn:              { height: 52, borderRadius: 12, backgroundColor: C.terra, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
   saveBtnText:          { color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
+
+  // confirm delete modal
+  confirmOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 32 },
+  confirmBox:           { backgroundColor: '#fff', borderRadius: 20, padding: 24, width: '100%', gap: 12 },
+  confirmIconWrap:      { width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff5f5', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  confirmTitle:         { fontSize: 18, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', textAlign: 'center' },
+  confirmDesc:          { fontSize: 14, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center', lineHeight: 22 },
+  confirmBtns:          { flexDirection: 'row', gap: 10, marginTop: 8 },
+  confirmCancel:        { flex: 1, height: 48, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  confirmCancelText:    { fontSize: 15, color: C.muted, fontFamily: 'WorkSans_600SemiBold' },
+  confirmDelete:        { flex: 1, height: 48, borderRadius: 12, backgroundColor: '#c0392b', alignItems: 'center', justifyContent: 'center' },
+  confirmDeleteText:    { fontSize: 15, color: '#fff', fontFamily: 'PlusJakartaSans_700Bold' },
 });
