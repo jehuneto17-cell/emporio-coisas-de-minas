@@ -178,6 +178,7 @@ export default function NotificationsScreen({ navigation }) {
           <Ionicons name="chevron-back" size={24} color={C.brown} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Notificações</Text>
+        <View style={styles.backBtn} />
       </View>
 
       {loading ? (
