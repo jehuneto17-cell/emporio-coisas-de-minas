@@ -101,8 +101,9 @@ function ToggleItem({ icon, title, subtitle, value, onChange, isLast }) {
         value={value}
         onValueChange={onChange}
         trackColor={{ false: C.border, true: C.terra }}
-        thumbColor="#fff"
+        thumbColor={value ? '#fff' : '#fff'}
         ios_backgroundColor={C.border}
+        style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
       />
     </View>
   );
