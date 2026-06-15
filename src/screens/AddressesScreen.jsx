@@ -179,26 +179,15 @@ export default function AddressesScreen({ navigation }) {
   }
 
   async function handleDelete(id) {
-    Alert.alert(
-      'Excluir endereço',
-      'Tem certeza que deseja remover este endereço?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAddress(user.uid, id);
-              setAddresses(prev => prev.filter(a => a.id !== id));
-            } catch (e) {
-              console.warn('[Addresses] delete error', e);
-              Alert.alert('Erro', 'Não foi possível excluir o endereço.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      console.log('[Delete] tentando excluir id:', id);
+      await deleteAddress(user.uid, id);
+      console.log('[Delete] excluído com sucesso');
+      setAddresses(prev => prev.filter(a => a.id !== id));
+    } catch (e) {
+      console.warn('[Delete] erro:', e);
+      Alert.alert('Erro', 'Não foi possível excluir o endereço.');
+    }
   }
 
   async function handleSetDefault(id) {
