@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   fieldRow:             { flexDirection: 'row', alignItems: 'center', height: 48, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, paddingHorizontal: 12 },
   fieldRowFocused:      { borderWidth: 2, borderColor: C.brown },
   fieldRowDisabled:     { backgroundColor: C.softCream },
-  fieldInput:           { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
+  fieldInput:           { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular', outlineStyle: 'none' },
   row:                  { flexDirection: 'row', gap: 10 },
   saveBtn:              { height: 52, borderRadius: 12, backgroundColor: C.terra, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4 },
   saveBtnText:          { color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
