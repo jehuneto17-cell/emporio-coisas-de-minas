@@ -461,6 +461,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: outline de foco removido nos inputs da AddressesScreen** (2026-06-15) — `outlineStyle: 'none'` adicionado ao estilo `fieldInput` no `StyleSheet` de `AddressesScreen.jsx`; remove o outline preto padrão do navegador web nos campos de texto
 ✅ **Fix: regras do Firestore atualizadas** (2026-06-15) — `firestore.rules` atualizado com regras para subcoleções `/users/{uid}/addresses` e `/users/{uid}/settings` (ambas `allow read, write: if isOwner(uid)`); cabeçalho do arquivo atualizado para documentar as novas coleções; regras devem ser publicadas manualmente via Firebase Console ou `firebase deploy --only firestore:rules`
 ✅ **Fix: exclusão de endereços na AddressesScreen** (2026-06-15) — `handleDelete` corrigido: `await load()` substituído por atualização otimista `setAddresses(prev => prev.filter(a => a.id !== id))`; evita reload desnecessário do Firestore após excluir; erro capturado com `console.warn` e mensagem mais descritiva
+✅ **Fix: confirmação de exclusão de endereço compatível com web e mobile** (2026-06-15) — `handleDelete` reescrito com bifurcação `Platform.OS === 'web'`: na web usa `window.confirm()` (nativo do browser); no mobile usa `Alert.alert` com `new Promise(resolve => ...)` para aguardar a resposta do usuário antes de executar a exclusão; elimina o problema em que o `Alert` no mobile não aguardava a confirmação
 
 ---
 
