@@ -185,13 +185,15 @@ export default function AddressesScreen({ navigation }) {
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Excluir', style: 'destructive',
+          text: 'Excluir',
+          style: 'destructive',
           onPress: async () => {
             try {
               await deleteAddress(user.uid, id);
-              await load();
-            } catch {
-              Alert.alert('Erro', 'Não foi possível excluir.');
+              setAddresses(prev => prev.filter(a => a.id !== id));
+            } catch (e) {
+              console.warn('[Addresses] delete error', e);
+              Alert.alert('Erro', 'Não foi possível excluir o endereço.');
             }
           },
         },
