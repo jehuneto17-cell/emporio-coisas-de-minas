@@ -179,10 +179,21 @@ export default function AddressesScreen({ navigation }) {
   }
 
   async function handleDelete(id) {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Deseja remover este endereço?')
+      : await new Promise(resolve =>
+          Alert.alert(
+            'Excluir endereço',
+            'Tem certeza que deseja remover este endereço?',
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Excluir', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          )
+        );
+    if (!confirmed) return;
     try {
-      console.log('[Delete] tentando excluir id:', id);
       await deleteAddress(user.uid, id);
-      console.log('[Delete] excluído com sucesso');
       setAddresses(prev => prev.filter(a => a.id !== id));
     } catch (e) {
       console.warn('[Delete] erro:', e);
