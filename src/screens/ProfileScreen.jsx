@@ -13,7 +13,7 @@ import { getUserProfile, getUserOrders } from '../services/firestore';
 
 const MENU = [
   { icon: 'bag-outline',             label: 'Meus Pedidos',            screen: 'MyOrders',  target: 'stack' },
-  { icon: 'location-outline',        label: 'Endereços',               screen: null,         target: null },
+  { icon: 'location-outline',        label: 'Endereços',               screen: 'Addresses',  target: 'stack' },
   { icon: 'card-outline',            label: 'Formas de Pagamento',     screen: null,         target: null },
   { icon: 'heart-outline',           label: 'Favoritos',               screen: 'Favoritos',  target: 'tab' },
   { icon: 'notifications-outline',   label: 'Notificações',            screen: 'Notifications', target: 'stack' },

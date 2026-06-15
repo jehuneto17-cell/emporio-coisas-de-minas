@@ -223,6 +223,33 @@ export async function updateUserProfile(uid, data) {
   await setDoc(doc(db, 'users', uid), data, { merge: true });
 }
 
+// ─── Endereços ────────────────────────────────────────────────────────────────
+
+export async function getAddresses(uid) {
+  const snap = await getDocs(collection(db, 'users', uid, 'addresses'));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function saveAddress(uid, address) {
+  const id = address.id || Date.now().toString();
+  const { id: _id, ...data } = address;
+  await setDoc(doc(db, 'users', uid, 'addresses', id), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  return id;
+}
+
+export async function deleteAddress(uid, addressId) {
+  await deleteDoc(doc(db, 'users', uid, 'addresses', addressId));
+}
+
+export async function setDefaultAddress(uid, addressId) {
+  const snap = await getDocs(collection(db, 'users', uid, 'addresses'));
+  const batch = writeBatch(db);
+  snap.docs.forEach(d => {
+    batch.update(d.ref, { isDefault: d.id === addressId });
+  });
+  await batch.commit();
+}
+
 export async function searchProducts(term) {
   const all = await fetchAll();
   const lower = term.toLowerCase().trim();

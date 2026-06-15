@@ -64,7 +64,7 @@ emporio-app/
 │   │   └── FavoritesContext.jsx        # favoritos, toggleFavorite, isFavorite
 │   ├── navigation/
 │   │   └── AppNavigator.jsx            # Stack + Tab navigator; proteção de rotas
-│   ├── screens/                        # 16 telas (uma por arquivo .jsx)
+│   ├── screens/                        # 17 telas (uma por arquivo .jsx)
 │   │   ├── SplashScreen.jsx
 │   │   ├── LoginScreen.jsx             # usa useAuth() → login()
 │   │   ├── SignUpScreen.jsx
@@ -83,7 +83,9 @@ emporio-app/
 │   │   ├── EditProfileScreen.jsx          # edição de nome, telefone, data nasc. e endereço de entrega
 │   │   ├── MyOrdersScreen.jsx             # lista de pedidos com filtros por status
 │   │   ├── HelpScreen.jsx                 # FAQ em acordeão + botão WhatsApp para suporte
-│   │   └── PrivacyScreen.jsx              # redefinir senha, política de privacidade LGPD, excluir conta
+│   │   ├── PrivacyScreen.jsx              # redefinir senha, política de privacidade LGPD, excluir conta
+│   │   ├── NotificationsScreen.jsx        # toggles de preferências de notificação com persistência no Firestore
+│   │   └── AddressesScreen.jsx            # múltiplos endereços com ViaCEP, endereço padrão, editar/excluir
 │   ├── services/                       # Firebase
 │   │   ├── firebase.js                 # initializeApp + config
 │   │   ├── auth.js                     # signIn, signUp, signOut, onAuthStateChanged
@@ -452,6 +454,10 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: captura correta do id_token do Google na web via expo-auth-session** (2026-06-14) — `useEffect` que processa `response` atualizado: `id_token` agora buscado com fallback `response.params?.id_token ?? response.authentication?.idToken` para cobrir diferenças de comportamento entre web e nativo; erro explícito exibido quando token não está presente em nenhum dos caminhos
 ✅ **Fix: Google Auth configurado com responseType id_token para funcionar na web** (2026-06-14) — `Google.useAuthRequest` atualizado com `responseType: 'id_token'` e `usePKCE: false`; necessário na web para que o Google retorne o `id_token` diretamente nos `response.params` em vez de um `code` que exigiria troca server-side
 ✅ **PrivacyScreen** (2026-06-14) — tela `src/screens/PrivacyScreen.jsx` criada com 3 seções: (1) "Segurança da conta" com ações "Redefinir senha" (modal que chama `sendPasswordResetEmail` do Firebase e exibe feedback de sucesso) e "Excluir minha conta" (modal com reautenticação por senha via `reauthenticateWithCredential` + `deleteUser`, seguido de `logout()`); (2) "Política de Privacidade" em acordeão com 6 tópicos cobrindo coleta de dados, uso, armazenamento, direitos LGPD, cookies e contato; (3) nota de rodapé sobre LGPD. `sendPasswordResetEmail(email)` e `deleteAccount(password)` adicionados em `src/services/auth.js`. Rota `Privacy` registrada no `AppNavigator.jsx`. Item "Privacidade e Segurança" no array `MENU` do `ProfileScreen` atualizado para `screen: 'Privacy', target: 'stack'`
+✅ **NotificationsScreen** (2026-06-15) — tela `src/screens/NotificationsScreen.jsx` criada com 6 toggles de preferências de notificação agrupados em 3 seções (Pedidos, Produtos, Geral); preferências carregadas de `/users/{uid}/settings/notifications` no mount e salvas otimisticamente a cada toggle via `setDoc` com `merge: true`; `ActivityIndicator` durante carregamento; card informativo sobre push notifications futuras; rota `Notifications` registrada no `AppNavigator.jsx`; item "Notificações" no array `MENU` do `ProfileScreen` atualizado para `screen: 'Notifications', target: 'stack'`
+✅ **Fix: cor dos toggles de notificação** (2026-06-15) — `Switch` no `ToggleItem` de `NotificationsScreen.jsx` atualizado: `thumbColor` explicitado como `value ? '#fff' : '#fff'`; `style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}` adicionado para escala levemente menor; `trackColor` com `C.terra` mantido para estado ativo
+✅ **Fix: espaçador invisível no header da NotificationsScreen** (2026-06-15) — espaçador do lado direito do header trocado de `<View style={styles.backBtn} />` (que exibia fundo branco e borda aparecendo como botão fantasma) para `<View style={{ width: 40 }} />` transparente; título permanece centralizado
+✅ **AddressesScreen** (2026-06-15) — tela `src/screens/AddressesScreen.jsx` criada com gerenciamento de múltiplos endereços: lista endereços salvos em `/users/{uid}/addresses` com badge "Padrão", chips de tipo (Casa/Trabalho/Outro), botões editar/excluir e ação "Definir como padrão"; formulário em bottom sheet animado com busca automática de endereço via ViaCEP ao digitar o CEP; empty state com CTA; estado de visitante não logado. Funções `getAddresses`, `saveAddress`, `deleteAddress`, `setDefaultAddress` adicionadas em `firestore.js`. Rota `Addresses` registrada no `AppNavigator.jsx`. Item "Endereços" no `MENU` do `ProfileScreen` atualizado para `screen: 'Addresses', target: 'stack'`
 
 ---
 
