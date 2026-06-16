@@ -139,7 +139,7 @@ export default function HomeScreen({ navigation }) {
                   end={{ x: 1, y: 1 }}
                 >
                   {banners[slide]?.imageUrl ? (
-                    <Image source={{ uri: banners[slide].imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                    <Image source={{ uri: banners[slide].imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="contain" />
                   ) : (
                     <View style={styles.bannerContent}>
                       {banners[slide]?.badge ? <View style={styles.bannerBadge}><Text style={styles.bannerBadgeText}>{banners[slide].badge}</Text></View> : null}
@@ -163,7 +163,7 @@ export default function HomeScreen({ navigation }) {
                     end={{ x: 1, y: 1 }}
                   >
                     {banners[nextSlide]?.imageUrl ? (
-                      <Image source={{ uri: banners[nextSlide].imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                      <Image source={{ uri: banners[nextSlide].imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="contain" />
                     ) : (
                       <View style={styles.bannerContent}>
                         {banners[nextSlide]?.badge ? <View style={styles.bannerBadge}><Text style={styles.bannerBadgeText}>{banners[nextSlide].badge}</Text></View> : null}
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   searchText: { flex: 1, fontSize: 13.5, color: C.ink, fontFamily: 'WorkSans_400Regular' },
   filterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' },
   bannerWrap: { paddingHorizontal: 20, paddingBottom: 8 },
-  banner: { borderRadius: 16, overflow: 'hidden', flexDirection: 'row', height: 200 },
+  banner: { borderRadius: 16, overflow: 'hidden', flexDirection: 'row', width: '100%', aspectRatio: 2.13 },
   bannerContent: { flex: 1, gap: 8 },
   bannerBadge: { alignSelf: 'flex-start', backgroundColor: C.terra, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
   bannerBadgeText: { color: '#fff', fontSize: 9.5, fontFamily: 'WorkSans_600SemiBold', letterSpacing: 1 },
