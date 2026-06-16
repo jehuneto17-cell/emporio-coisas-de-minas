@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.cream },
   searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 10 },
   searchInput: { flex: 1, height: 44, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 9 },
-  searchText: { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
+  searchText: { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular', outlineStyle: 'none' },
   cancelBtn: { paddingHorizontal: 4 },
   cancelText: { fontSize: 14, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
   section: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
