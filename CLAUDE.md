@@ -468,6 +468,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: glow e proporção da logo na SplashScreen** (2026-06-15) — `View` do glow dourado removida do JSX e estilo `glow` removido do StyleSheet (efeito não estava funcionando bem visualmente); proporção da logo corrigida de `width * 0.72` / `(767/1546)` para `width * 0.65` / `(920/1100)`, compatível com as dimensões reais do `logo-cream.png`; fundo do `container` passou de `backgroundColor` sólido para um `LinearGradient` (`#6f2c1f → #52170c → #3a0f08`, vertical) envolvendo todo o conteúdo da tela, criando um degradê sutil em vez de cor chapada
 ✅ **Fix: proporção quadrada da logo-cream na SplashScreen** (2026-06-15) — estilo `logo` ajustado novamente: `width * 0.65` / `(920/1100)` substituído por `width * 0.60` para largura **e** altura, já que `logo-cream.png` é aproximadamente quadrada
 ✅ **`assets/logo-cream.png` atualizada** (2026-06-15) — arquivo substituído por nova versão com logo na cor dourada (`#d8a360`-ish) e fundo transparente (em vez da versão clara/cream usada anteriormente sobre fundo escuro); usada pela `SplashScreen`
+✅ **`assets/logo-cream.png` — versão final** (2026-06-15) — arquivo substituído novamente pela versão final 1080x1080 com fundo transparente e cor dourada (ajuste fino de cor/resolução em relação à versão anterior); usada pela `SplashScreen`
 
 ---
 
