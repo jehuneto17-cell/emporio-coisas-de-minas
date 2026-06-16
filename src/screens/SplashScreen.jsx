@@ -1,42 +1,61 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, Platform, Dimensions } from 'react-native';
+import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
 
 const { width } = Dimensions.get('window');
-const FRAME_W = Platform.OS === 'web' ? 390 : width;
-const LOGO_W  = FRAME_W * 0.82;
-const LOGO_H  = LOGO_W * (767 / 1546);
 
 export default function SplashScreen({ navigation }) {
   const opacity  = useRef(new Animated.Value(0)).current;
-  const scale    = useRef(new Animated.Value(0.9)).current;
+  const scale    = useRef(new Animated.Value(0.92)).current;
   const progress = useRef(new Animated.Value(0)).current;
   const sinceOp  = useRef(new Animated.Value(0)).current;
+  const decoOp   = useRef(new Animated.Value(0)).current;
+  const tagOp    = useRef(new Animated.Value(0)).current;
+  const tagY     = useRef(new Animated.Value(6)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 1100, useNativeDriver: true }),
       Animated.spring(scale,   { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
     ]).start();
-
+    Animated.timing(decoOp,  { toValue: 1, duration: 1400, delay: 750, useNativeDriver: true }).start();
+    Animated.parallel([
+      Animated.timing(tagOp, { toValue: 1, duration: 1400, delay: 500, useNativeDriver: true }),
+      Animated.timing(tagY,  { toValue: 0, duration: 1400, delay: 500, useNativeDriver: true }),
+    ]).start();
     Animated.timing(sinceOp,  { toValue: 1, duration: 800, delay: 600, useNativeDriver: true }).start();
-    Animated.timing(progress, { toValue: 0.92, duration: 2800, useNativeDriver: false }).start();
-
-    const timer = setTimeout(() => navigation.replace('Main'), 3000);
+    Animated.timing(progress, { toValue: 0.92, duration: 3200, useNativeDriver: false }).start();
+    const timer = setTimeout(() => navigation.replace('Main'), 3200);
     return () => clearTimeout(timer);
   }, []);
 
   const progressWidth = progress.interpolate({
-    inputRange: [0, 1], outputRange: ['0%', '100%'],
+    inputRange: [0, 1], outputRange: ['8%', '92%'],
   });
 
   return (
     <View style={styles.container}>
-      {/* Logo */}
-      <Animated.Image
-        source={require('../../assets/logo.png')}
-        style={[styles.logo, { opacity, transform: [{ scale }] }]}
-        resizeMode="contain"
-      />
+      {/* Ornamento superior */}
+      <Animated.View style={[styles.ornamentTop, { opacity: decoOp }]}>
+        <Ornament />
+      </Animated.View>
+
+      {/* Logo com glow */}
+      <View style={styles.logoWrap}>
+        <View style={styles.glow} />
+        <Animated.Image
+          source={require('../../assets/logo-cream.png')}
+          style={[styles.logo, { opacity, transform: [{ scale }] }]}
+          resizeMode="contain"
+        />
+        <Animated.Text style={[styles.tagline, { opacity: tagOp, transform: [{ translateY: tagY }] }]}>
+          Delícias da Canastra e outros trem…
+        </Animated.Text>
+      </View>
+
+      {/* Ornamento inferior */}
+      <Animated.View style={[styles.ornamentBottom, { opacity: decoOp }]}>
+        <Ornament />
+      </Animated.View>
 
       {/* Barra de progresso */}
       <View style={styles.progressTrack}>
@@ -51,35 +70,93 @@ export default function SplashScreen({ navigation }) {
   );
 }
 
+function Ornament() {
+  return (
+    <View style={styles.ornament}>
+      <View style={styles.ornamentLine} />
+      <View style={styles.ornamentDiamond} />
+      <View style={styles.ornamentLine} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ede3d8',
+    backgroundColor: '#52170c',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 28,
+  },
+  logoWrap: {
+    alignItems: 'center',
+    gap: 24,
+  },
+  glow: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: 'rgba(216,163,96,0.15)',
+    top: '50%',
+    marginTop: -160,
   },
   logo: {
-    width: LOGO_W,
-    height: LOGO_H,
+    width: width * 0.72,
+    height: width * 0.72 * (767 / 1546),
+  },
+  tagline: {
+    fontFamily: 'WorkSans_400Regular',
+    fontStyle: 'italic',
+    fontSize: 15,
+    color: '#ffb4a5',
+    textAlign: 'center',
+    letterSpacing: 0.3,
+  },
+  ornamentTop: {
+    position: 'absolute',
+    top: '25%',
+  },
+  ornamentBottom: {
+    position: 'absolute',
+    top: '72%',
+  },
+  ornament: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 120,
+    gap: 8,
+  },
+  ornamentLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#d8a360',
+    opacity: 0.6,
+  },
+  ornamentDiamond: {
+    width: 5,
+    height: 5,
+    backgroundColor: '#d8a360',
+    transform: [{ rotate: '45deg' }],
   },
   progressTrack: {
-    width: 110,
+    position: 'absolute',
+    bottom: '18%',
+    width: 120,
     height: 2,
     borderRadius: 999,
-    backgroundColor: 'rgba(82,23,12,0.15)',
+    backgroundColor: 'rgba(255,180,165,0.2)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#964904',
+    backgroundColor: '#d8a360',
     borderRadius: 999,
   },
   since: {
     position: 'absolute',
-    bottom: 48,
+    bottom: '10%',
     fontSize: 11,
-    color: 'rgba(82,23,12,0.45)',
+    color: 'rgba(255,180,165,0.5)',
     letterSpacing: 4,
     fontFamily: 'WorkSans_500Medium',
   },
