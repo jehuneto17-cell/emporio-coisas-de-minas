@@ -470,6 +470,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **`assets/logo-cream.png` atualizada** (2026-06-15) — arquivo substituído por nova versão com logo na cor dourada (`#d8a360`-ish) e fundo transparente (em vez da versão clara/cream usada anteriormente sobre fundo escuro); usada pela `SplashScreen`
 ✅ **`assets/logo-cream.png` — versão final** (2026-06-15) — arquivo substituído novamente pela versão final 1080x1080 com fundo transparente e cor dourada (ajuste fino de cor/resolução em relação à versão anterior); usada pela `SplashScreen`
 ✅ **`assets/logo-cream.png` — fundo verdadeiramente transparente** (2026-06-15) — arquivo substituído mais uma vez pela versão com background removido via ferramenta dedicada (`-removebg-preview`), corrigindo resquícios de fundo branco/sólido que ainda apareciam nas versões anteriores; usada pela `SplashScreen`
+✅ **`assets/logo-cream.png` — versão final definitiva** (2026-06-16) — arquivo substituído pela versão `Alterar_cor_da_logo__3_-removebg-preview.png`: novo refinamento de cor dourada com fundo 100% transparente removido via removebg; usada pela `SplashScreen`
 
 ---
 
