@@ -5,19 +5,43 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C, fmt } from '../theme';
-import { getProducts } from '../services/firestore';
+import { getProducts, getCategories } from '../services/firestore';
 
-const RECENT = ['Queijo Canastra', 'Café Especial', 'Doce de Leite'];
-const POPULAR = ['🧀 Queijos', '☕ Cafés', '🍬 Doces', '🫙 Conservas', '🍷 Bebidas'];
+const HISTORY_KEY = 'search_history';
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [allProducts, setAllProducts] = useState([]);
+  const [recent, setRecent] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     getProducts().then(setAllProducts);
+    getCategories().then(setCategories).catch(() => {});
+    AsyncStorage.getItem(HISTORY_KEY)
+      .then(val => { if (val) setRecent(JSON.parse(val)); })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!query.trim()) return;
+    const t = setTimeout(() => saveToHistory(query.trim()), 1500);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  async function saveToHistory(term) {
+    if (!term) return;
+    const updated = [term, ...recent.filter(r => r !== term)].slice(0, 5);
+    setRecent(updated);
+    await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  }
+
+  async function clearHistory() {
+    setRecent([]);
+    await AsyncStorage.removeItem(HISTORY_KEY);
+  }
 
   const results = useMemo(() => {
     const term = query.toLowerCase().trim();
@@ -62,28 +86,37 @@ export default function SearchScreen({ navigation }) {
         {!hasQuery ? (
           <>
             {/* Recent */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Buscas Recentes</Text>
-              {RECENT.map((r) => (
-                <TouchableOpacity key={r} onPress={() => setQuery(r)} style={styles.recentItem}>
-                  <Ionicons name="time-outline" size={16} color={C.subtle} />
-                  <Text style={styles.recentText}>{r}</Text>
-                  <Ionicons name="arrow-up-outline" size={14} color={C.subtle} style={{ marginLeft: 'auto', transform: [{ rotate: '45deg' }] }} />
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* Popular */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Categorias Populares</Text>
-              <View style={styles.popularGrid}>
-                {POPULAR.map((p) => (
-                  <TouchableOpacity key={p} style={styles.popularChip} onPress={() => setQuery(p.split(' ')[1])}>
-                    <Text style={styles.popularText}>{p}</Text>
+            {recent.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Buscas Recentes</Text>
+                  <TouchableOpacity onPress={clearHistory}>
+                    <Text style={styles.clearText}>Limpar</Text>
+                  </TouchableOpacity>
+                </View>
+                {recent.map((r) => (
+                  <TouchableOpacity key={r} onPress={() => setQuery(r)} style={styles.recentItem}>
+                    <Ionicons name="time-outline" size={16} color={C.subtle} />
+                    <Text style={styles.recentText}>{r}</Text>
+                    <Ionicons name="arrow-up-outline" size={14} color={C.subtle} style={{ marginLeft: 'auto', transform: [{ rotate: '45deg' }] }} />
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            )}
+
+            {/* Popular */}
+            {categories.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Categorias Populares</Text>
+                <View style={styles.popularGrid}>
+                  {categories.slice(0, 6).map((c) => (
+                    <TouchableOpacity key={c.id} style={styles.popularChip} onPress={() => setQuery(c.name)}>
+                      <Text style={styles.popularText}>{c.icon ? `${c.icon} ${c.name}` : c.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </>
         ) : (
           <View style={styles.section}>
@@ -125,7 +158,9 @@ const styles = StyleSheet.create({
   cancelBtn: { paddingHorizontal: 4 },
   cancelText: { fontSize: 14, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
   section: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitle: { fontSize: 14, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', marginBottom: 12 },
+  clearText: { fontSize: 12, color: C.terra, fontFamily: 'WorkSans_500Medium' },
   recentItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
   recentText: { fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
   popularGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
