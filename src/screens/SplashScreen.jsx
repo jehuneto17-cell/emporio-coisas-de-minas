@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -33,15 +34,19 @@ export default function SplashScreen({ navigation }) {
   });
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#6f2c1f', '#52170c', '#3a0f08']}
+      start={{ x: 0.5, y: 0 }}
+      end={{ x: 0.5, y: 1 }}
+      style={styles.container}
+    >
       {/* Ornamento superior */}
       <Animated.View style={[styles.ornamentTop, { opacity: decoOp }]}>
         <Ornament />
       </Animated.View>
 
-      {/* Logo com glow */}
+      {/* Logo */}
       <View style={styles.logoWrap}>
-        <View style={styles.glow} />
         <Animated.Image
           source={require('../../assets/logo-cream.png')}
           style={[styles.logo, { opacity, transform: [{ scale }] }]}
@@ -66,7 +71,7 @@ export default function SplashScreen({ navigation }) {
       <Animated.Text style={[styles.since, { opacity: sinceOp }]}>
         DESDE 2022
       </Animated.Text>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -91,18 +96,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 24,
   },
-  glow: {
-    position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(216,163,96,0.15)',
-    top: '50%',
-    marginTop: -160,
-  },
   logo: {
-    width: width * 0.72,
-    height: width * 0.72 * (767 / 1546),
+    width: width * 0.65,
+    height: width * 0.65 * (920 / 1100),
   },
   tagline: {
     fontFamily: 'WorkSans_400Regular',
