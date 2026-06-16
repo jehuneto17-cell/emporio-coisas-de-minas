@@ -97,8 +97,8 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   logo: {
-    width: width * 0.65,
-    height: width * 0.65 * (920 / 1100),
+    width: width * 0.60,
+    height: width * 0.60,
   },
   tagline: {
     fontFamily: 'WorkSans_400Regular',
