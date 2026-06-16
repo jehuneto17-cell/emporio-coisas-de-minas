@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -131,7 +131,20 @@ export default function SearchScreen({ navigation }) {
                 style={styles.resultCard}
                 onPress={() => navigation.navigate('ProductDetail', { product: p })}
               >
-                <LinearGradient colors={p.colors ?? ['#e0c090', '#a07030']} style={styles.resultImg} />
+                <View style={styles.resultImg}>
+                  {(p.images?.[0] || p.imageUrl) ? (
+                    <Image
+                      source={{ uri: p.images?.[0] || p.imageUrl }}
+                      style={{ width: '100%', height: '100%', borderRadius: 10 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <LinearGradient
+                      colors={p.colors ?? ['#e0c090', '#a07030']}
+                      style={{ width: '100%', height: '100%', borderRadius: 10 }}
+                    />
+                  )}
+                </View>
                 <View style={styles.resultInfo}>
                   <Text style={styles.resultName}>{p.name}</Text>
                   <Text style={styles.resultProducer}>{p.producer}</Text>
@@ -167,7 +180,7 @@ const styles = StyleSheet.create({
   popularChip: { backgroundColor: C.chip, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.border },
   popularText: { fontSize: 13, color: C.brown, fontFamily: 'WorkSans_500Medium' },
   resultCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.card, borderRadius: 14, padding: 12, marginBottom: 10 },
-  resultImg: { width: 64, height: 64, borderRadius: 10 },
+  resultImg: { width: 64, height: 64, borderRadius: 10, overflow: 'hidden' },
   resultInfo: { flex: 1, gap: 3 },
   resultName: { fontSize: 14, color: C.ink, fontFamily: 'PlusJakartaSans_600SemiBold' },
   resultProducer: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' },
