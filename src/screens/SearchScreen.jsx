@@ -111,7 +111,7 @@ export default function SearchScreen({ navigation }) {
                 <View style={styles.popularGrid}>
                   {categories.slice(0, 6).map((c) => (
                     <TouchableOpacity key={c.id} style={styles.popularChip} onPress={() => setQuery(c.name)}>
-                      <Text style={styles.popularText}>{c.icon ? `${c.icon} ${c.name}` : c.name}</Text>
+                      <Text style={styles.popularText}>{c.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
