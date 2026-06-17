@@ -65,11 +65,12 @@ export async function getProducts() {
 
 export async function getProductsByCategory(categoryId) {
   if (!categoryId) return fetchAll();
-  const q = query(collection(db, COL), where('category', '==', categoryId));
-  const snap = await getDocs(q);
-  return snap.docs
-    .map(mapProduct)
-    .filter((p) => p.visible !== false && p.status !== 'Inativo');
+  const all = await fetchAll();
+  return all.filter(p =>
+    p.visible !== false &&
+    p.status !== 'Inativo' &&
+    (p.category === categoryId || p.subcategory === categoryId)
+  );
 }
 
 export async function getProductById(id) {
