@@ -568,13 +568,20 @@ const styles = StyleSheet.create({
   categoriesRow: { paddingHorizontal: 20, gap: 16 },
   catItem:  { alignItems: 'center', gap: 7, width: 72 },
   catCircle: {
-    width: 58, height: 58, borderRadius: 29,
-    backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.brown, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
-    borderWidth: 1, borderColor: C.border,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: C.softCream,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: C.border,
   },
-  catEmoji: { fontSize: 26 },
+  catEmoji: {
+    fontSize: 28,
+    lineHeight: 36,
+    textAlign: 'center',
+  },
   catName:  { fontFamily: 'WorkSans_500Medium', fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 15 },
 
   // Horizontal product list
