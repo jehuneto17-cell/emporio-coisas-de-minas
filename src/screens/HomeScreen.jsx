@@ -9,7 +9,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 import { getProducts, getCategories, getBanners, getProductById } from '../services/firestore';
+import { getUnreadCount } from './NotificationsPanel';
 import { Jar, Cake, Pepper, FireSimple, Bread, Wine, ShoppingBag } from 'phosphor-react-native';
 
 function getCatIcon(name = '', size = 28, color = '#964904') {
@@ -26,6 +28,8 @@ function getCatIcon(name = '', size = 28, color = '#964904') {
 export default function HomeScreen({ navigation }) {
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const [slide, setSlide] = useState(0);
   const slideRef = React.useRef(0);
@@ -39,6 +43,11 @@ export default function HomeScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    getUnreadCount(user.uid).then(setUnreadCount).catch(() => {});
+  }, [user?.uid]);
 
   useEffect(() => {
     getBanners().then(setBanners).catch(() => {});
@@ -101,7 +110,7 @@ export default function HomeScreen({ navigation }) {
             onPress={() => navigation.navigate('NotificationsPanel')}
           >
             <Ionicons name="notifications-outline" size={20} color={C.brown} />
-            <View style={styles.bellDot} />
+            {unreadCount > 0 && <View style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
 
