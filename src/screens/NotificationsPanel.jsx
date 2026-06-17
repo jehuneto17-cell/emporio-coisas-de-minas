@@ -38,8 +38,8 @@ const TYPE_CONFIG = {
 
 const WELCOME_NOTIF = {
   type: 'welcome',
-  title: 'Bem-vindo ao Empório!',
-  body: 'Explore nossos produtos artesanais da Serra da Canastra e região de Minas Gerais.',
+  title: 'Bem-vindo ao Empório Coisas de Minas! 🎉',
+  body: 'Estamos felizes em ter você aqui! Explore nossos produtos e aproveite as melhores delícias mineiras.',
   read: false,
 };
 
