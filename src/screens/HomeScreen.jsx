@@ -96,7 +96,10 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.locationText}>Itaú de Minas, MG</Text>
             <Ionicons name="chevron-down" size={10} color={C.muted} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.bellBtn}>
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => navigation.navigate('NotificationsPanel')}
+          >
             <Ionicons name="notifications-outline" size={20} color={C.brown} />
             <View style={styles.bellDot} />
           </TouchableOpacity>
