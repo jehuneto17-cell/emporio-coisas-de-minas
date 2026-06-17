@@ -1,293 +1,94 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, TextInput,
-  StyleSheet, ActivityIndicator, Image, Animated, Dimensions,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { C, fmt } from '../theme';
+import { getProducts, getCategories, getBanners } from '../services/firestore';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
-import { getProducts, getCategories, getBanners, getProductById } from '../services/firestore';
 import { getUnreadCount } from './NotificationsPanel';
-import { Jar, Cake, Pepper, FireSimple, Bread, Wine, ShoppingBag } from 'phosphor-react-native';
 
-function getCatIcon(name = '', size = 28, color = '#964904') {
-  const n = name.toLowerCase();
-  if (n.includes('antepasto') || n.includes('patê') || n.includes('pasta')) return <Jar size={size} color={color} weight="light" />;
-  if (n.includes('doce'))      return <Cake size={size} color={color} weight="light" />;
-  if (n.includes('geleia'))    return <Pepper size={size} color={color} weight="light" />;
-  if (n.includes('pimenta') || n.includes('molho')) return <FireSimple size={size} color={color} weight="light" />;
-  if (n.includes('torrada') || n.includes('pão') || n.includes('pao')) return <Bread size={size} color={color} weight="light" />;
-  if (n.includes('vinho'))     return <Wine size={size} color={color} weight="light" />;
-  return <ShoppingBag size={size} color={color} weight="light" />;
+const { width: SW } = Dimensions.get('window');
+const CARD_W        = 168;
+const GRID_W        = (SW - 20 * 2 - 10) / 2;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Bom dia! 👋';
+  if (h < 18) return 'Boa tarde! ☀️';
+  return 'Boa noite! 🌙';
 }
 
-export default function HomeScreen({ navigation }) {
-  const { addItem } = useCart();
-  const { isFavorite, toggleFavorite } = useFavorites();
-  const { user } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
+function productImage(p) {
+  return p?.images?.[0] || p?.imageUrl || null;
+}
 
-  const [slide, setSlide] = useState(0);
-  const slideRef = React.useRef(0);
-  const [cat, setCat] = useState('');
-  const [categories, setCategories] = useState([]);
-  const [banners, setBanners] = useState([]);
-  const screenWidth = Dimensions.get('window').width - 40;
-  const slideAnim = React.useRef(new Animated.Value(0)).current;
-  const [nextSlide, setNextSlide] = React.useState(null);
-  const nextSlideAnim = React.useRef(new Animated.Value(0)).current;
-  const [search, setSearch] = useState('');
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+// ─── ProductCard (horizontal list) ───────────────────────────────────────────
 
-  useEffect(() => {
-    if (!user?.uid) return;
-    getUnreadCount(user.uid).then(setUnreadCount).catch(() => {});
-  }, [user?.uid]);
-
-  useEffect(() => {
-    getBanners().then(setBanners).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      const next = (slideRef.current + 1) % Math.max(banners.length, 1);
-      goToSlide(next);
-    }, 4500);
-    return () => clearInterval(t);
-  }, [banners.length]);
-
-  useEffect(() => {
-    getProducts()
-      .then(setProducts)
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    getCategories().then(setCategories).catch(() => {});
-  }, []);
-
-  function goToSlide(next) {
-    if (next === slideRef.current) return;
-    slideRef.current = next;
-    setNextSlide(next);
-    nextSlideAnim.setValue(screenWidth);
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: -screenWidth,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(nextSlideAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setSlide(next);
-      setNextSlide(null);
-      slideAnim.setValue(0);
-      nextSlideAnim.setValue(0);
-    });
-  }
-
+function ProductCard({ product, onAddCart, onToggleFav, isFav, onPress, style }) {
+  const img = productImage(product);
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-        {/* Top nav */}
-        <View style={styles.topNav}>
-          <TouchableOpacity style={styles.locationBtn}>
-            <Ionicons name="location-sharp" size={13} color={C.terra} />
-            <Text style={styles.locationText}>Itaú de Minas, MG</Text>
-            <Ionicons name="chevron-down" size={10} color={C.muted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.bellBtn}
-            onPress={() => navigation.navigate('NotificationsPanel')}
-          >
-            <Ionicons name="notifications-outline" size={20} color={C.brown} />
-            {unreadCount > 0 && <View style={styles.bellDot} />}
-          </TouchableOpacity>
-        </View>
-
-        {/* Greeting */}
-        <View style={styles.greetingWrap}>
-          <Text style={styles.greetingSub}>Bom dia! 👋</Text>
-          <Text style={styles.greetingTitle}>Empório Coisas de Minas</Text>
-          <View style={styles.divider} />
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchRow}>
-          <View style={styles.searchInput}>
-            <Ionicons name="search-outline" size={16} color={C.subtle} />
-            <TextInput
-              value={search} onChangeText={setSearch}
-              placeholder="Buscar queijos, cafés, doces..."
-              placeholderTextColor={C.subtle}
-              style={styles.searchText}
-              onFocus={() => navigation.navigate('Search')}
-            />
-          </View>
-          <TouchableOpacity style={styles.filterBtn} onPress={() => navigation.navigate('Search')}>
-            <Ionicons name="options-outline" size={16} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Promo Banner */}
-        {banners.length > 0 && (
-          <View style={styles.bannerWrap}>
-            <View style={{ overflow: 'hidden', borderRadius: 16 }}>
-              {/* Banner atual */}
-              <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
-                <LinearGradient
-                  colors={[banners[slide]?.bg || '#52170c', banners[slide]?.bg2 || '#6f2c1f']}
-                  style={styles.banner}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  {banners[slide]?.imageUrl ? (
-                    <Image source={{ uri: banners[slide].imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="contain" />
-                  ) : (
-                    <View style={styles.bannerContent}>
-                      {banners[slide]?.badge ? <View style={styles.bannerBadge}><Text style={styles.bannerBadgeText}>{banners[slide].badge}</Text></View> : null}
-                      <Text style={styles.bannerTitle}>{banners[slide]?.title}</Text>
-                      <Text style={styles.bannerSub}>{banners[slide]?.subtitle}</Text>
-                    </View>
-                  )}
-                  {!banners[slide]?.imageUrl && <LinearGradient colors={[banners[slide]?.bg + '88' || '#52170c88', C.ochre]} style={styles.bannerCircle} />}
-                  <TouchableOpacity style={[StyleSheet.absoluteFillObject, { justifyContent: 'flex-end', padding: 16 }]} activeOpacity={0.9}
-                    onPress={() => { const b = banners[slide]; if (b?.productId) getProductById(b.productId).then(p => { if (p) navigation.navigate('ProductDetail', { product: p }); }); }} />
-                </LinearGradient>
-              </Animated.View>
-
-              {/* Próximo banner — aparece por baixo deslizando */}
-              {nextSlide !== null && banners[nextSlide] && (
-                <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, transform: [{ translateX: nextSlideAnim }] }}>
-                  <LinearGradient
-                    colors={[banners[nextSlide]?.bg || '#52170c', banners[nextSlide]?.bg2 || '#6f2c1f']}
-                    style={styles.banner}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    {banners[nextSlide]?.imageUrl ? (
-                      <Image source={{ uri: banners[nextSlide].imageUrl }} style={StyleSheet.absoluteFillObject} resizeMode="contain" />
-                    ) : (
-                      <View style={styles.bannerContent}>
-                        {banners[nextSlide]?.badge ? <View style={styles.bannerBadge}><Text style={styles.bannerBadgeText}>{banners[nextSlide].badge}</Text></View> : null}
-                        <Text style={styles.bannerTitle}>{banners[nextSlide]?.title}</Text>
-                        <Text style={styles.bannerSub}>{banners[nextSlide]?.subtitle}</Text>
-                      </View>
-                    )}
-                    {!banners[nextSlide]?.imageUrl && <LinearGradient colors={[banners[nextSlide]?.bg + '88' || '#52170c88', C.ochre]} style={styles.bannerCircle} />}
-                  </LinearGradient>
-                </Animated.View>
-              )}
-            </View>
-
-            <View style={styles.dotsRow}>
-              {banners.map((_, i) => (
-                <TouchableOpacity key={i} onPress={() => goToSlide(i)}
-                  style={[styles.dot, i === slide && styles.dotActive]} />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Categories */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Categorias</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
-          {categories.map((c) => {
-            const on = c.id === cat;
-            return (
-              <TouchableOpacity
-                key={c.id}
-                onPress={() => {
-                  setCat(c.id);
-                  navigation.navigate('Listing', { category: c });
-                }}
-                style={styles.catItem}
-              >
-                <View style={[styles.catCircle, on && styles.catCircleActive]}>
-                  {getCatIcon(c.name, 26, on ? '#fff' : '#964904')}
-                </View>
-                <Text style={[styles.catLabel, on && styles.catLabelActive]}>{c.name}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Featured */}
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Mais Vendidos</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Listing')} style={styles.seeAllBtn}>
-            <Text style={styles.seeAllText}>Ver todos</Text>
-            <Ionicons name="arrow-forward" size={12} color={C.terra} />
-          </TouchableOpacity>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator color={C.brown} />
-          </View>
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onPress(product)} style={[productCardStyles.card, style]}>
+      {/* Image / gradient fallback */}
+      <View style={productCardStyles.imgWrap}>
+        {img ? (
+          <Image source={{ uri: img }} style={productCardStyles.img} resizeMode="cover" />
         ) : (
-          <View style={styles.grid}>
-            {products.slice(0, 4).map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                liked={isFavorite(p.id)}
-                onLike={() => toggleFavorite(p)}
-                inCart={false}
-                onAdd={() => addItem({ ...p, qty: 1 })}
-                onPress={() => navigation.navigate('ProductDetail', { product: p })}
-              />
-            ))}
-          </View>
-        )}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-function ProductCard({ product: p, liked, onLike, inCart, onAdd, onPress }) {
-  const heroImage = (p.images && p.images[0]) || p.imageUrl || null;
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
-      <LinearGradient colors={p.colors ?? ['#e0c090', '#a07030']} style={styles.cardImg}>
-        {heroImage && (
-          <Image
-            source={{ uri: heroImage }}
-            style={StyleSheet.absoluteFillObject}
-            resizeMode="cover"
+          <LinearGradient
+            colors={[C.brown, C.terra]}
+            style={productCardStyles.img}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
           />
         )}
-        {p.sale && (
-          <View style={styles.saleBadge}>
-            <Text style={styles.saleBadgeText}>−{p.sale}%</Text>
+        {/* Sale badge */}
+        {product.sale > 0 && (
+          <View style={productCardStyles.saleBadge}>
+            <Text style={productCardStyles.saleBadgeText}>-{product.sale}%</Text>
           </View>
         )}
-        <TouchableOpacity onPress={onLike} style={styles.likeBtn}>
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={14} color={liked ? C.brown : C.subtle} />
+        {/* Fav button */}
+        <TouchableOpacity
+          onPress={() => onToggleFav(product)}
+          style={productCardStyles.favBtn}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons
+            name={isFav ? 'heart' : 'heart-outline'}
+            size={18}
+            color={isFav ? '#e53935' : C.subtle}
+          />
         </TouchableOpacity>
-      </LinearGradient>
-      <View style={styles.cardBody}>
-        <Text style={styles.cardName} numberOfLines={2}>{p.name}</Text>
-        <Text style={styles.cardProducer}>{p.producer}</Text>
-        <View style={styles.cardRating}>
-          <Ionicons name="star" size={11} color={C.ochre} />
-          <Text style={styles.cardRatingText}>{p.rating?.toFixed(1) ?? '—'}</Text>
-        </View>
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardPrice}>{fmt(p.price)}</Text>
-          <TouchableOpacity onPress={onAdd} style={[styles.addBtn, inCart && styles.addBtnDone]}>
-            <Ionicons name="add" size={14} color="#fff" />
+      </View>
+
+      {/* Info */}
+      <View style={productCardStyles.info}>
+        <Text style={productCardStyles.producer} numberOfLines={1}>{product.producer || ''}</Text>
+        <Text style={productCardStyles.name} numberOfLines={2}>{product.name}</Text>
+        {product.rating > 0 && (
+          <View style={productCardStyles.ratingRow}>
+            <Ionicons name="star" size={11} color={C.ochre} />
+            <Text style={productCardStyles.ratingText}>{Number(product.rating).toFixed(1)}</Text>
+          </View>
+        )}
+        <View style={productCardStyles.priceRow}>
+          <Text style={productCardStyles.price}>{fmt(product.price)}</Text>
+          <TouchableOpacity onPress={() => onAddCart(product)} style={productCardStyles.addBtn}>
+            <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -295,59 +96,493 @@ function ProductCard({ product: p, liked, onLike, inCart, onAdd, onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.cream },
-  topNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
-  locationBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  locationText: { fontSize: 12.5, color: C.muted, fontFamily: 'WorkSans_500Medium' },
-  bellBtn: { width: 38, height: 38, borderRadius: 999, borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  bellDot: { position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: C.terra, borderWidth: 1.5, borderColor: '#fff' },
-  greetingWrap: { paddingHorizontal: 20, paddingBottom: 14 },
-  greetingSub: { fontSize: 12.5, color: C.muted, fontFamily: 'WorkSans_500Medium' },
-  greetingTitle: { marginTop: 2, fontSize: 22, color: C.brown, fontFamily: 'PlusJakartaSans_800ExtraBold', letterSpacing: -0.5, lineHeight: 28 },
-  divider: { height: 1, backgroundColor: C.border, marginTop: 14, opacity: 0.7 },
-  searchRow: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: 'row', gap: 8 },
-  searchInput: { flex: 1, height: 44, borderRadius: 999, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 9 },
-  searchText: { flex: 1, fontSize: 13.5, color: C.ink, fontFamily: 'WorkSans_400Regular' },
-  filterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' },
-  bannerWrap: { paddingHorizontal: 20, paddingBottom: 8 },
-  banner: { borderRadius: 16, overflow: 'hidden', flexDirection: 'row', width: '100%', aspectRatio: 2.13 },
-  bannerContent: { flex: 1, gap: 8 },
-  bannerBadge: { alignSelf: 'flex-start', backgroundColor: C.terra, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 5 },
-  bannerBadgeText: { color: '#fff', fontSize: 9.5, fontFamily: 'WorkSans_600SemiBold', letterSpacing: 1 },
-  bannerTitle: { fontSize: 16, color: C.cream, fontFamily: 'PlusJakartaSans_700Bold', lineHeight: 20, maxWidth: 165 },
-  bannerSub: { fontSize: 11, color: C.rose, lineHeight: 16, maxWidth: 170, fontFamily: 'WorkSans_400Regular' },
-  bannerBtn: { alignSelf: 'flex-start', backgroundColor: C.terra, borderRadius: 8, paddingHorizontal: 13, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  bannerBtnText: { color: '#fff', fontSize: 12, fontFamily: 'WorkSans_600SemiBold' },
-  bannerCircle: { position: 'absolute', right: -22, top: -28, width: 150, height: 150, borderRadius: 75 },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 12 },
+const productCardStyles = StyleSheet.create({
+  card: {
+    width: CARD_W,
+    backgroundColor: C.card,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: C.brown,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  imgWrap: { width: '100%', aspectRatio: 1, position: 'relative' },
+  img: { width: '100%', height: '100%' },
+  saleBadge: {
+    position: 'absolute', top: 8, left: 8,
+    backgroundColor: '#e53935', borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  saleBadgeText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#fff' },
+  favBtn: {
+    position: 'absolute', top: 8, right: 8,
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  info: { padding: 10 },
+  producer: { fontFamily: 'WorkSans_400Regular', fontSize: 11, color: C.subtle, marginBottom: 2 },
+  name: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: C.ink, lineHeight: 18, minHeight: 36 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  ratingText: { fontFamily: 'WorkSans_400Regular', fontSize: 11, color: C.muted },
+  priceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  price: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.terra },
+  addBtn: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center',
+  },
+});
+
+// ─── ProductGridCard (2-col grid) ─────────────────────────────────────────────
+
+function ProductGridCard({ product, onAddCart, onToggleFav, isFav, onPress }) {
+  const img = productImage(product);
+  return (
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onPress(product)} style={[gridCardStyles.card, { width: GRID_W }]}>
+      <View style={gridCardStyles.imgWrap}>
+        {img ? (
+          <Image source={{ uri: img }} style={gridCardStyles.img} resizeMode="cover" />
+        ) : (
+          <LinearGradient colors={[C.brown, C.terra]} style={gridCardStyles.img} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+        )}
+        {product.sale > 0 && (
+          <View style={productCardStyles.saleBadge}>
+            <Text style={productCardStyles.saleBadgeText}>-{product.sale}%</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          onPress={() => onToggleFav(product)}
+          style={productCardStyles.favBtn}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={16} color={isFav ? '#e53935' : C.subtle} />
+        </TouchableOpacity>
+      </View>
+      <View style={gridCardStyles.info}>
+        <Text style={gridCardStyles.producer} numberOfLines={1}>{product.producer || ''}</Text>
+        <Text style={gridCardStyles.name} numberOfLines={2}>{product.name}</Text>
+        {product.rating > 0 && (
+          <View style={productCardStyles.ratingRow}>
+            <Ionicons name="star" size={11} color={C.ochre} />
+            <Text style={productCardStyles.ratingText}>{Number(product.rating).toFixed(1)}</Text>
+          </View>
+        )}
+        <View style={productCardStyles.priceRow}>
+          <Text style={gridCardStyles.price}>{fmt(product.price)}</Text>
+          <TouchableOpacity onPress={() => onAddCart(product)} style={productCardStyles.addBtn}>
+            <Ionicons name="add" size={16} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const gridCardStyles = StyleSheet.create({
+  card: {
+    backgroundColor: C.card, borderRadius: 16, overflow: 'hidden',
+    shadowColor: C.brown, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09, shadowRadius: 10, elevation: 2,
+  },
+  imgWrap: { width: '100%', aspectRatio: 1, position: 'relative' },
+  img: { width: '100%', height: '100%' },
+  info: { padding: 10 },
+  producer: { fontFamily: 'WorkSans_400Regular', fontSize: 11, color: C.subtle, marginBottom: 2 },
+  name: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: C.ink, lineHeight: 17, minHeight: 34 },
+  price: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: C.terra },
+});
+
+// ─── Banner Carousel ──────────────────────────────────────────────────────────
+
+function BannerCarousel({ banners, onPress }) {
+  const [active, setActive] = useState(0);
+  const scrollRef           = useRef(null);
+  const timer               = useRef(null);
+  const list                = banners.filter((b) => b.active !== false);
+
+  const startTimer = useCallback(() => {
+    clearInterval(timer.current);
+    if (list.length < 2) return;
+    timer.current = setInterval(() => setActive((prev) => {
+      const next = (prev + 1) % list.length;
+      scrollRef.current?.scrollTo({ x: next * (SW - 40), animated: true });
+      return next;
+    }), 4500);
+  }, [list.length]);
+
+  useEffect(() => {
+    startTimer();
+    return () => clearInterval(timer.current);
+  }, [startTimer]);
+
+  if (!list.length) return null;
+
+  return (
+    <View style={bannerStyles.wrap}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / (SW - 40));
+          setActive(idx);
+          startTimer();
+        }}
+        style={{ width: SW - 40 }}
+      >
+        {list.map((b) => (
+          <TouchableOpacity
+            key={b.id}
+            activeOpacity={0.92}
+            onPress={() => b.productId && onPress(b.productId)}
+            style={[bannerStyles.slide, { width: SW - 40 }]}
+          >
+            <LinearGradient
+              colors={[b.bg || C.brown, b.bg2 || C.terra]}
+              style={bannerStyles.gradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              {b.badge && (
+                <View style={bannerStyles.badge}>
+                  <Text style={bannerStyles.badgeText}>{b.badge}</Text>
+                </View>
+              )}
+              {b.title && <Text style={bannerStyles.title}>{b.title}</Text>}
+              {b.subtitle && <Text style={bannerStyles.subtitle}>{b.subtitle}</Text>}
+              {b.imageUrl && (
+                <Image
+                  source={{ uri: b.imageUrl }}
+                  style={bannerStyles.img}
+                  resizeMode="contain"
+                />
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {/* Dots */}
+      {list.length > 1 && (
+        <View style={bannerStyles.dots}>
+          {list.map((_, i) => (
+            <View key={i} style={[bannerStyles.dot, i === active && bannerStyles.dotActive]} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+const bannerStyles = StyleSheet.create({
+  wrap: { marginHorizontal: 20, borderRadius: 18, overflow: 'hidden' },
+  slide: { aspectRatio: 2.13 },
+  gradient: { flex: 1, padding: 20, justifyContent: 'flex-end', position: 'relative' },
+  img: { position: 'absolute', right: 0, bottom: 0, width: '55%', height: '100%' },
+  badge: {
+    position: 'absolute', top: 16, left: 16,
+    backgroundColor: C.ochre, borderRadius: 6,
+    paddingHorizontal: 10, paddingVertical: 4,
+  },
+  badgeText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.brown },
+  title: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 20, color: '#fff', lineHeight: 25, maxWidth: '55%' },
+  subtitle: { fontFamily: 'WorkSans_400Regular', fontSize: 13, color: 'rgba(255,255,255,0.80)', marginTop: 4, maxWidth: '55%' },
+  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
-  dotActive: { width: 18, backgroundColor: C.terra },
-  sectionHeader: { paddingHorizontal: 20, paddingBottom: 12, marginTop: 16 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12, marginTop: 18 },
-  sectionTitle: { fontSize: 15.5, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
-  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  seeAllText: { fontSize: 12, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
-  catScroll: { paddingHorizontal: 20, paddingBottom: 4, gap: 14 },
-  catItem: { alignItems: 'center', gap: 6, minWidth: 58 },
-  catCircle: { width: 58, height: 58, borderRadius: 29, backgroundColor: C.softCream, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  catCircleActive: { backgroundColor: C.brown, borderWidth: 0 },
-  catLabel: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_500Medium' },
-  catLabelActive: { color: C.brown, fontFamily: 'WorkSans_600SemiBold' },
-  loadingWrap: { height: 200, alignItems: 'center', justifyContent: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 20, gap: 12 },
-  card: { width: '47.5%', backgroundColor: C.card, borderRadius: 16, overflow: 'hidden' },
-  cardImg: { width: '100%', aspectRatio: 1 },
-  saleBadge: { position: 'absolute', top: 9, left: 9, backgroundColor: C.terra, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  saleBadgeText: { color: '#fff', fontSize: 10, fontFamily: 'WorkSans_600SemiBold' },
-  likeBtn: { position: 'absolute', top: 9, right: 9, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  cardBody: { padding: 11, gap: 3 },
-  cardName: { fontSize: 13, color: C.ink, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 17 },
-  cardProducer: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular' },
-  cardRating: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  cardRatingText: { fontSize: 10.5, color: C.muted, fontFamily: 'WorkSans_600SemiBold' },
-  cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
-  cardPrice: { fontSize: 14, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
-  addBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' },
-  addBtnDone: { backgroundColor: C.brown },
+  dotActive: { backgroundColor: C.terra, width: 18 },
+});
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ title, onSeeAll }) {
+  return (
+    <View style={sectionStyles.header}>
+      <Text style={sectionStyles.title}>{title}</Text>
+      {onSeeAll && (
+        <TouchableOpacity onPress={onSeeAll}>
+          <Text style={sectionStyles.seeAll}>Ver todos →</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const sectionStyles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
+  title:  { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: C.brown },
+  seeAll: { fontFamily: 'WorkSans_500Medium', fontSize: 13, color: C.terra },
+});
+
+// ─── HomeScreen ───────────────────────────────────────────────────────────────
+
+export default function HomeScreen({ navigation }) {
+  const { user }                        = useAuth();
+  const { addItem }                     = useCart();
+  const { favorites, toggleFavorite }   = useFavorites();
+  const [products, setProducts]         = useState([]);
+  const [categories, setCategories]     = useState([]);
+  const [banners, setBanners]           = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [unreadNotif, setUnreadNotif]   = useState(0);
+
+  // Load data
+  useEffect(() => {
+    Promise.all([getProducts(), getCategories(), getBanners()])
+      .then(([prods, cats, bans]) => {
+        setProducts(Array.isArray(prods) ? prods : []);
+        setCategories(Array.isArray(cats) ? cats : []);
+        setBanners(Array.isArray(bans) ? bans : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // Badge do sino
+  useEffect(() => {
+    if (!user?.uid) return;
+    getUnreadCount(user.uid).then(setUnreadNotif).catch(() => {});
+  }, [user?.uid]);
+
+  // Derived lists
+  const featured = useMemo(() => products.filter((p) => p.featured), [products]);
+
+  const newArrivals = useMemo(() =>
+    [...products]
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))
+      .slice(0, 4),
+    [products]
+  );
+
+  const bestSellers = useMemo(() => products.slice(0, 4), [products]);
+
+  const isFav = useCallback((p) => favorites?.some?.((f) => f.id === p.id) || false, [favorites]);
+
+  const handleAddCart    = useCallback((p) => addItem({ ...p, qty: 1 }),  [addItem]);
+  const handleToggleFav  = useCallback((p) => toggleFavorite(p),          [toggleFavorite]);
+  const handleProductNav = useCallback((p) => navigation.navigate('ProductDetail', { product: p }), [navigation]);
+  const handleBannerPress = useCallback((productId) => {
+    navigation.navigate('ProductDetail', { productId });
+  }, [navigation]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.centerFill}>
+          <ActivityIndicator size="large" color={C.terra} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* ── 1. Header ── */}
+        <View style={styles.header}>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={16} color={C.terra} />
+            <Text style={styles.locationText}>Itaú de Minas, MG</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('NotificationsPanel')}
+            style={styles.bellBtn}
+          >
+            <Ionicons name="notifications-outline" size={22} color={C.brown} />
+            {unreadNotif > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadNotif > 9 ? '9+' : unreadNotif}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* ── 2. Greeting + search ── */}
+        <View style={styles.greetingWrap}>
+          <Text style={styles.greetText}>{greeting()}</Text>
+          <Text style={styles.brandName}>Empório Coisas{'\n'}de Minas</Text>
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('Search')}
+          style={styles.searchBar}
+        >
+          <Ionicons name="search-outline" size={18} color={C.subtle} />
+          <Text style={styles.searchPlaceholder}>Buscar produtos, produtores…</Text>
+        </TouchableOpacity>
+
+        {/* ── 3. Banners ── */}
+        {banners.length > 0 && (
+          <View style={styles.section}>
+            <BannerCarousel banners={banners} onPress={handleBannerPress} />
+          </View>
+        )}
+
+        {/* ── 4. Categories ── */}
+        {categories.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Categorias" />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoriesRow}
+              style={{ marginTop: 14 }}
+            >
+              {categories
+                .sort((a, b) => (a.order || 0) - (b.order || 0))
+                .map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('Listing', { category: cat })}
+                    style={styles.catItem}
+                  >
+                    <View style={styles.catCircle}>
+                      <Text style={styles.catEmoji}>{cat.icon || '🛍️'}</Text>
+                    </View>
+                    <Text style={styles.catName} numberOfLines={1}>{cat.name}</Text>
+                  </TouchableOpacity>
+                ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── 5. Destaques ── */}
+        {featured.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Destaques" onSeeAll={() => navigation.navigate('Listing', { filter: 'featured' })} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.hListContent}
+              style={{ marginTop: 14 }}
+            >
+              {featured.map((p) => (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  onAddCart={handleAddCart}
+                  onToggleFav={handleToggleFav}
+                  isFav={isFav(p)}
+                  onPress={handleProductNav}
+                  style={{ marginRight: 12 }}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── 6. Novidades ── */}
+        {newArrivals.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Novidades" onSeeAll={() => navigation.navigate('Listing', { sort: 'newest' })} />
+            <View style={styles.grid}>
+              {newArrivals.map((p) => (
+                <ProductGridCard
+                  key={p.id}
+                  product={p}
+                  onAddCart={handleAddCart}
+                  onToggleFav={handleToggleFav}
+                  isFav={isFav(p)}
+                  onPress={handleProductNav}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ── 7. Mais Vendidos ── */}
+        {bestSellers.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Mais Vendidos" onSeeAll={() => navigation.navigate('Listing')} />
+            <View style={styles.grid}>
+              {bestSellers.map((p) => (
+                <ProductGridCard
+                  key={p.id}
+                  product={p}
+                  onAddCart={handleAddCart}
+                  onToggleFav={handleToggleFav}
+                  isFav={isFav(p)}
+                  onPress={handleProductNav}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  safe:       { flex: 1, backgroundColor: C.cream },
+  centerFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  scroll:     { paddingBottom: 24 },
+
+  // Header
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4,
+  },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  locationText: { fontFamily: 'WorkSans_500Medium', fontSize: 13, color: C.muted },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: C.card,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: C.border, position: 'relative',
+  },
+  bellBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#e53935', alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 9, color: '#fff' },
+
+  // Greeting
+  greetingWrap: { paddingHorizontal: 20, marginTop: 16, marginBottom: 14 },
+  greetText:    { fontFamily: 'WorkSans_500Medium', fontSize: 14, color: C.muted },
+  brandName:    { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 26, color: C.brown, lineHeight: 32, marginTop: 2 },
+
+  // Search
+  searchBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 20, marginBottom: 20,
+    height: 48, borderRadius: 12, backgroundColor: C.card,
+    paddingHorizontal: 14, borderWidth: 1, borderColor: C.border,
+  },
+  searchPlaceholder: { fontFamily: 'WorkSans_400Regular', fontSize: 14, color: C.subtle },
+
+  // Sections
+  section: { marginTop: 24 },
+
+  // Categories
+  categoriesRow: { paddingHorizontal: 20, gap: 16 },
+  catItem:  { alignItems: 'center', gap: 7, width: 66 },
+  catCircle: {
+    width: 58, height: 58, borderRadius: 29,
+    backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.brown, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 8, elevation: 2,
+    borderWidth: 1, borderColor: C.border,
+  },
+  catEmoji: { fontSize: 26 },
+  catName:  { fontFamily: 'WorkSans_500Medium', fontSize: 11, color: C.muted, textAlign: 'center' },
+
+  // Horizontal product list
+  hListContent: { paddingHorizontal: 20, paddingBottom: 4, gap: 0 },
+
+  // 2-col grid
+  grid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+    paddingHorizontal: 20, marginTop: 14,
+  },
 });
