@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { C, fmt } from '../theme';
 import { getProducts, getCategories, getBanners } from '../services/firestore';
+import { Jar, Cake, Pepper, FireSimple, Bread, Wine, ShoppingBag } from 'phosphor-react-native';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,17 @@ const CARD_W        = 168;
 const GRID_W        = (SW - 20 * 2 - 10) / 2;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getCatIcon(name = '', size = 28, color = '#964904') {
+  const n = name.toLowerCase();
+  if (n.includes('antepasto') || n.includes('patê') || n.includes('pasta')) return <Jar size={size} color={color} weight="light" />;
+  if (n.includes('doce'))      return <Cake size={size} color={color} weight="light" />;
+  if (n.includes('geleia'))    return <Pepper size={size} color={color} weight="light" />;
+  if (n.includes('pimenta') || n.includes('molho')) return <FireSimple size={size} color={color} weight="light" />;
+  if (n.includes('torrada') || n.includes('pão') || n.includes('pao')) return <Bread size={size} color={color} weight="light" />;
+  if (n.includes('vinho'))     return <Wine size={size} color={color} weight="light" />;
+  return <ShoppingBag size={size} color={color} weight="light" />;
+}
 
 function greeting() {
   const h = new Date().getHours();
@@ -442,7 +454,7 @@ export default function HomeScreen({ navigation }) {
                     style={styles.catItem}
                   >
                     <View style={styles.catCircle}>
-                      <Text style={styles.catEmoji}>{cat.icon || '🛍️'}</Text>
+                      {getCatIcon(cat.name, 26, C.terra)}
                     </View>
                     <Text style={styles.catName} numberOfLines={2}>{cat.name}</Text>
                   </TouchableOpacity>
