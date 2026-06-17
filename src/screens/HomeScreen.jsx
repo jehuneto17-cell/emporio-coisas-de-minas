@@ -258,7 +258,7 @@ function BannerCarousel({ banners, onPress }) {
                 <Image
                   source={{ uri: b.imageUrl }}
                   style={bannerStyles.img}
-                  resizeMode="contain"
+                  resizeMode="cover"
                 />
               )}
             </LinearGradient>
@@ -281,7 +281,7 @@ const bannerStyles = StyleSheet.create({
   wrap: { marginHorizontal: 20, borderRadius: 18, overflow: 'hidden' },
   slide: { aspectRatio: 2.13 },
   gradient: { flex: 1, padding: 20, justifyContent: 'flex-end', position: 'relative' },
-  img: { position: 'absolute', right: 0, bottom: 0, width: '55%', height: '100%' },
+  img: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
   badge: {
     position: 'absolute', top: 16, left: 16,
     backgroundColor: C.ochre, borderRadius: 6,
@@ -444,7 +444,7 @@ export default function HomeScreen({ navigation }) {
                     <View style={styles.catCircle}>
                       <Text style={styles.catEmoji}>{cat.icon || '🛍️'}</Text>
                     </View>
-                    <Text style={styles.catName} numberOfLines={1}>{cat.name}</Text>
+                    <Text style={styles.catName} numberOfLines={2}>{cat.name}</Text>
                   </TouchableOpacity>
                 ))}
             </ScrollView>
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
 
   // Categories
   categoriesRow: { paddingHorizontal: 20, gap: 16 },
-  catItem:  { alignItems: 'center', gap: 7, width: 66 },
+  catItem:  { alignItems: 'center', gap: 7, width: 72 },
   catCircle: {
     width: 58, height: 58, borderRadius: 29,
     backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: C.border,
   },
   catEmoji: { fontSize: 26 },
-  catName:  { fontFamily: 'WorkSans_500Medium', fontSize: 11, color: C.muted, textAlign: 'center' },
+  catName:  { fontFamily: 'WorkSans_500Medium', fontSize: 11, color: C.muted, textAlign: 'center', lineHeight: 15 },
 
   // Horizontal product list
   hListContent: { paddingHorizontal: 20, paddingBottom: 4, gap: 0 },
