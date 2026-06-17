@@ -33,10 +33,21 @@ export default function ListingScreen({ navigation, route }) {
       ? getProductsByCategory(category.id)
       : getProducts();
     fetch
-      .then(setProducts)
+      .then(data => {
+        if (route.params?.filter === 'new') {
+          const sorted = [...data].sort((a, b) =>
+            (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+          );
+          setProducts(sorted.slice(0, 10));
+        } else if (route.params?.filter === 'featured') {
+          setProducts(data.filter(p => p.featured));
+        } else {
+          setProducts(data);
+        }
+      })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [category?.id]);
+  }, [category?.id, route.params?.filter]);
 
   const sorted = useMemo(() => {
     const list = [...products];
@@ -92,7 +103,11 @@ export default function ListingScreen({ navigation, route }) {
           <Ionicons name="chevron-back" size={22} color={C.brown} />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {category?.name || category?.label || 'Todos os Produtos'}
+          {route.params?.filter === 'new'
+            ? 'Novidades'
+            : route.params?.filter === 'featured'
+            ? 'Destaques'
+            : category?.name || category?.label || 'Todos os Produtos'}
         </Text>
         <TouchableOpacity style={styles.backBtn}>
           <Ionicons name="options-outline" size={20} color={C.brown} />

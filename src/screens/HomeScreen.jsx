@@ -491,7 +491,7 @@ export default function HomeScreen({ navigation }) {
         {/* ── 6. Novidades ── */}
         {newArrivals.length > 0 && (
           <View style={styles.section}>
-            <SectionHeader title="Novidades" onSeeAll={() => navigation.navigate('Listing', { sort: 'newest' })} />
+            <SectionHeader title="Novidades" onSeeAll={() => navigation.navigate('Listing', { filter: 'new' })} />
             <View style={styles.grid}>
               {newArrivals.map((p) => (
                 <ProductGridCard
