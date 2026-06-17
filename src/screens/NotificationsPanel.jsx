@@ -15,6 +15,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   serverTimestamp,
   query,
@@ -42,6 +43,42 @@ const WELCOME_NOTIF = {
   body: 'Estamos felizes em ter você aqui! Explore nossos produtos e aproveite as melhores delícias mineiras.',
   read: false,
 };
+
+// ─── Cleanup config ───────────────────────────────────────────────────────────
+
+const MAX_NOTIFICATIONS = 20;
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+async function cleanOldNotifications(uid, docs) {
+  if (!uid || !docs.length) return;
+  const db = getFirestore(app);
+  const now = Date.now();
+
+  // Deletar notificações com mais de 30 dias
+  const toDelete = docs.filter(d => {
+    const createdAt = d.data().createdAt?.toDate?.();
+    if (!createdAt) return false;
+    return now - createdAt.getTime() > THIRTY_DAYS_MS;
+  });
+
+  // Se ainda sobrar mais de 20, deletar as mais antigas
+  const remaining = docs.filter(d => !toDelete.includes(d));
+  if (remaining.length > MAX_NOTIFICATIONS) {
+    const excess = remaining
+      .sort((a, b) => {
+        const aTime = a.data().createdAt?.toDate?.()?.getTime() || 0;
+        const bTime = b.data().createdAt?.toDate?.()?.getTime() || 0;
+        return aTime - bTime;
+      })
+      .slice(0, remaining.length - MAX_NOTIFICATIONS);
+    toDelete.push(...excess);
+  }
+
+  if (toDelete.length === 0) return;
+  await Promise.all(
+    toDelete.map(d => deleteDoc(doc(db, 'users', uid, 'notifications', d.id)))
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -124,12 +161,16 @@ export default function NotificationsPanel({ navigation }) {
       const q    = query(ref, orderBy('createdAt', 'desc'));
       const snap = await getDocs(q);
 
-      // If no notifications exist, create the welcome one
+      // Limpar notificações antigas
+      await cleanOldNotifications(user.uid, snap.docs);
+
       if (snap.empty) {
         const newRef = await addDoc(ref, { ...WELCOME_NOTIF, createdAt: serverTimestamp() });
         setItems([{ id: newRef.id, ...WELCOME_NOTIF, createdAt: null }]);
       } else {
-        setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        // Recarregar após limpeza
+        const freshSnap = await getDocs(q);
+        setItems(freshSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       }
     } catch (_) {
       setItems([]);
