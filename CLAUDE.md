@@ -491,6 +491,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: botão "+" nos cards da HomeScreen navega para ProductDetail** (2026-06-21) — `onPress` do botão "+" em `ProductCard` e `ProductGridCard` alterado de `onAddCart(product)` para `onPress(product)`, fazendo o "+" abrir a tela de detalhes do produto em vez de adicionar ao carrinho diretamente
 ✅ **Fix: botão "-" no CartScreen remove item quando quantidade chega a 1** (2026-06-21) — `onPress` do botão "-" em `CartScreen` alterado de `updateQuantity(it.id, Math.max(1, it.qty - 1))` (que travava em 1) para lógica condicional: se `it.qty <= 1` chama `removeItem(it.id)`, senão `updateQuantity(it.id, it.qty - 1)`; produto é removido automaticamente ao zerar
 ✅ **EditProfileScreen: seção de endereço removida** (2026-06-21) — estados de endereço (`cep`, `street`, `number`, `complement`, `neighborhood`, `city`, `state`), preenchimento no `useEffect` e card "Endereço de entrega" removidos; `handleSave` atualizado para salvar apenas `name`, `phone` e `birthDate`; endereços gerenciados pela `AddressesScreen` dedicada
+✅ **Fix: outline removido no input de cupom do CartScreen** (2026-06-21) — `outlineStyle: 'none'` adicionado ao estilo `couponText`; remove o outline preto padrão do navegador web no campo de cupom
 
 ---
 
