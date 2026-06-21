@@ -104,7 +104,9 @@ emporio-app/
 ├── firebase.json                       # Config Firebase CLI (aponta para firestore.rules)
 ├── firestore.rules                     # Regras de segurança Firestore (produção)
 ├── firestore.indexes.json              # Índices Firestore (vazio por enquanto)
-├── vercel.json                         # Deploy web
+├── api/
+│   └── calcular-frete.js               # Vercel Serverless Function — proxy para API do Melhor Envio (evita CORS)
+├── vercel.json                         # Deploy web + rota /api/* para serverless functions
 └── package.json
 ```
 
@@ -493,6 +495,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **EditProfileScreen: seção de endereço removida** (2026-06-21) — estados de endereço (`cep`, `street`, `number`, `complement`, `neighborhood`, `city`, `state`), preenchimento no `useEffect` e card "Endereço de entrega" removidos; `handleSave` atualizado para salvar apenas `name`, `phone` e `birthDate`; endereços gerenciados pela `AddressesScreen` dedicada
 ✅ **Fix: outline removido no input de cupom do CartScreen** (2026-06-21) — `outlineStyle: 'none'` adicionado ao estilo `couponText`; remove o outline preto padrão do navegador web no campo de cupom
 ✅ **Integração Melhor Envio + endereço real no CheckoutScreen** (2026-06-21) — `CheckoutScreen` reescrito: (1) endereço padrão carregado do Firestore via `getAddresses(uid)` (fallback para o primeiro da lista); exibido com label, logradouro, cidade/estado/CEP reais; botão "Alterar" navega para `AddressesScreen`; (2) frete calculado via API sandbox do Melhor Envio (`POST /api/v2/me/shipment/calculate`) com CEP de origem fixo `37900-900`; opções filtradas (`!opt.error`), ordenadas por preço, primeira selecionada automaticamente; loading spinner, mensagem de erro e botão "Tentar novamente"; (3) `shippingCost` derivado do preço real da opção selecionada; (4) `handleConfirm` salva `shippingMethod`, `shippingCompany`, `shippingCost` e `deliveryAddress` reais no Firestore; token Melhor Envio como constante com `// TODO: mover para variável de ambiente`
+✅ **Proxy Vercel para cálculo de frete — resolve CORS** (2026-06-21) — `api/calcular-frete.js` criada como Vercel Serverless Function: recebe POST do app, encaminha para API sandbox do Melhor Envio com token de autenticação no servidor (token nunca exposto ao browser); headers CORS configurados para aceitar chamadas da origem do app; `vercel.json` atualizado com rewrite `/api/(.*)` antes do catch-all `/*→index.html`; `CheckoutScreen` atualizado para chamar `/api/calcular-frete` em vez da URL direta do Melhor Envio, sem headers de autenticação no cliente
 
 ---
 
