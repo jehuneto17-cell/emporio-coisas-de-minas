@@ -5,9 +5,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useFavorites } from '../context/FavoritesContext';
+import { useCart } from '../context/CartContext';
 
 export default function FavoritesScreen({ navigation }) {
   const { favorites, removeFavorite } = useFavorites();
+  const { addItem } = useCart();
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -57,7 +59,10 @@ export default function FavoritesScreen({ navigation }) {
                 </View>
                 <View style={styles.cardFooter}>
                   <Text style={styles.cardPrice}>{typeof p.price === 'number' ? fmt(p.price) : p.price}</Text>
-                  <TouchableOpacity style={styles.cartBtn}>
+                  <TouchableOpacity
+                    style={styles.cartBtn}
+                    onPress={() => addItem({ ...p, qty: 1 })}
+                  >
                     <Ionicons name="cart-outline" size={16} color="#fff" />
                   </TouchableOpacity>
                 </View>
