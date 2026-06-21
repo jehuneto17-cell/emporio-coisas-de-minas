@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
   bellBadgeText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 9, color: '#fff' },
 
   // Greeting
-  greetingWrap: { paddingHorizontal: 20, marginTop: 16, marginBottom: 14 },
+  greetingWrap: { paddingHorizontal: 20, marginTop: 6, marginBottom: 14 },
   greetText:    { fontFamily: 'WorkSans_500Medium', fontSize: 14, color: C.muted },
   brandName:    { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 26, color: C.brown, lineHeight: 32, marginTop: 2 },
 
