@@ -99,7 +99,7 @@ function ProductCard({ product, onAddCart, onToggleFav, isFav, onPress, style })
         )}
         <View style={productCardStyles.priceRow}>
           <Text style={productCardStyles.price}>{fmt(product.price)}</Text>
-          <TouchableOpacity onPress={() => onAddCart(product)} style={productCardStyles.addBtn}>
+          <TouchableOpacity onPress={() => onPress(product)} style={productCardStyles.addBtn}>
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -183,7 +183,7 @@ function ProductGridCard({ product, onAddCart, onToggleFav, isFav, onPress }) {
         )}
         <View style={productCardStyles.priceRow}>
           <Text style={gridCardStyles.price}>{fmt(product.price)}</Text>
-          <TouchableOpacity onPress={() => onAddCart(product)} style={productCardStyles.addBtn}>
+          <TouchableOpacity onPress={() => onPress(product)} style={productCardStyles.addBtn}>
             <Ionicons name="add" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
