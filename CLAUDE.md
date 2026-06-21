@@ -488,6 +488,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: espaço entre localização e saudação na HomeScreen** (2026-06-21) — `greetingWrap.marginTop` reduzido de `16` para `6` para aproximar a saudação da barra de localização acima
 ✅ **Fix: botão do carrinho na FavoritesScreen** (2026-06-21) — `useCart` importado; `addItem` conectado ao `onPress` do `cartBtn`; botão agora adiciona o produto ao carrinho com `qty: 1`
 ✅ **HomeScreen: seções Doces em Geral e Antepastos, Patês e Pastas substituem Mais Vendidos** (2026-06-21) — seção "Mais Vendidos" removida; dois novos `useState` (`doces`, `antepastos`) e carregamento via `getProductsByCategory('TyLolkWBnAXMLgxCwL75')` e `getProductsByCategory('gAFuanOffULW48wD066v')` adicionados ao `Promise.all` do `useEffect`; cada seção exibe grade 2 colunas de `ProductGridCard` com até 4 itens; "Ver todos" navega para `SubcategoryScreen` com o ID da categoria correspondente
+✅ **Fix: botão "+" nos cards da HomeScreen navega para ProductDetail** (2026-06-21) — `onPress` do botão "+" em `ProductCard` e `ProductGridCard` alterado de `onAddCart(product)` para `onPress(product)`, fazendo o "+" abrir a tela de detalhes do produto em vez de adicionar ao carrinho diretamente
 
 ---
 
