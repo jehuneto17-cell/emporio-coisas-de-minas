@@ -521,24 +521,18 @@ export default function HomeScreen({ navigation }) {
               title="Doces em Geral"
               onSeeAll={() => navigation.navigate('Subcategory', { category: { id: 'TyLolkWBnAXMLgxCwL75', name: 'Doces em Geral' } })}
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.hListContent}
-              style={{ marginTop: 14 }}
-            >
-              {doces.map((p) => (
-                <ProductCard
+            <View style={styles.grid}>
+              {doces.slice(0, 4).map((p) => (
+                <ProductGridCard
                   key={p.id}
                   product={p}
                   onAddCart={handleAddCart}
                   onToggleFav={handleToggleFav}
                   isFav={isFav(p)}
                   onPress={handleProductNav}
-                  style={{ marginRight: 12 }}
                 />
               ))}
-            </ScrollView>
+            </View>
           </View>
         )}
 
@@ -549,24 +543,18 @@ export default function HomeScreen({ navigation }) {
               title="Antepastos, Patês e Pastas"
               onSeeAll={() => navigation.navigate('Subcategory', { category: { id: 'gAFuanOffULW48wD066v', name: 'Antepastos, Patês e Pastas' } })}
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.hListContent}
-              style={{ marginTop: 14 }}
-            >
-              {antepastos.map((p) => (
-                <ProductCard
+            <View style={styles.grid}>
+              {antepastos.slice(0, 4).map((p) => (
+                <ProductGridCard
                   key={p.id}
                   product={p}
                   onAddCart={handleAddCart}
                   onToggleFav={handleToggleFav}
                   isFav={isFav(p)}
                   onPress={handleProductNav}
-                  style={{ marginRight: 12 }}
                 />
               ))}
-            </ScrollView>
+            </View>
           </View>
         )}
 
