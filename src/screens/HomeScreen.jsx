@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { C, fmt } from '../theme';
-import { getProducts, getCategories, getBanners } from '../services/firestore';
+import { getProducts, getCategories, getBanners, getProductsByCategory } from '../services/firestore';
 import { Jar, Cake, Pepper, FireSimple, Bread, Wine, ShoppingBag } from 'phosphor-react-native';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
@@ -337,19 +337,27 @@ export default function HomeScreen({ navigation }) {
   const [products, setProducts]         = useState([]);
   const [categories, setCategories]     = useState([]);
   const [banners, setBanners]           = useState([]);
+  const [doces, setDoces]               = useState([]);
+  const [antepastos, setAntepastos]     = useState([]);
   const [loading, setLoading]           = useState(true);
   const [unreadNotif, setUnreadNotif]   = useState(0);
 
   // Load data
   useEffect(() => {
-    Promise.all([getProducts(), getCategories(), getBanners()])
-      .then(([prods, cats, bans]) => {
-        setProducts(Array.isArray(prods) ? prods : []);
-        setCategories(Array.isArray(cats) ? cats : []);
-        setBanners(Array.isArray(bans) ? bans : []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      getProducts(),
+      getCategories(),
+      getBanners(),
+      getProductsByCategory('TyLolkWBnAXMLgxCwL75'),
+      getProductsByCategory('gAFuanOffULW48wD066v'),
+    ]).then(([prods, cats, bans, docesData, antepastosData]) => {
+      setProducts(Array.isArray(prods) ? prods : []);
+      setCategories(Array.isArray(cats) ? cats : []);
+      setBanners(Array.isArray(bans) ? bans : []);
+      setDoces(Array.isArray(docesData) ? docesData.slice(0, 6) : []);
+      setAntepastos(Array.isArray(antepastosData) ? antepastosData.slice(0, 6) : []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   // Badge do sino
@@ -368,7 +376,6 @@ export default function HomeScreen({ navigation }) {
     [products]
   );
 
-  const bestSellers = useMemo(() => products.slice(0, 4), [products]);
 
   const isFav = useCallback((p) => favorites?.some?.((f) => f.id === p.id) || false, [favorites]);
 
@@ -507,22 +514,59 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* ── 7. Mais Vendidos ── */}
-        {bestSellers.length > 0 && (
+        {/* ── 7. Doces em Geral ── */}
+        {doces.length > 0 && (
           <View style={styles.section}>
-            <SectionHeader title="Mais Vendidos" onSeeAll={() => navigation.navigate('Listing')} />
-            <View style={styles.grid}>
-              {bestSellers.map((p) => (
-                <ProductGridCard
+            <SectionHeader
+              title="Doces em Geral"
+              onSeeAll={() => navigation.navigate('Subcategory', { category: { id: 'TyLolkWBnAXMLgxCwL75', name: 'Doces em Geral' } })}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.hListContent}
+              style={{ marginTop: 14 }}
+            >
+              {doces.map((p) => (
+                <ProductCard
                   key={p.id}
                   product={p}
                   onAddCart={handleAddCart}
                   onToggleFav={handleToggleFav}
                   isFav={isFav(p)}
                   onPress={handleProductNav}
+                  style={{ marginRight: 12 }}
                 />
               ))}
-            </View>
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── 8. Antepastos, Patês e Pastas ── */}
+        {antepastos.length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader
+              title="Antepastos, Patês e Pastas"
+              onSeeAll={() => navigation.navigate('Subcategory', { category: { id: 'gAFuanOffULW48wD066v', name: 'Antepastos, Patês e Pastas' } })}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.hListContent}
+              style={{ marginTop: 14 }}
+            >
+              {antepastos.map((p) => (
+                <ProductCard
+                  key={p.id}
+                  product={p}
+                  onAddCart={handleAddCart}
+                  onToggleFav={handleToggleFav}
+                  isFav={isFav(p)}
+                  onPress={handleProductNav}
+                  style={{ marginRight: 12 }}
+                />
+              ))}
+            </ScrollView>
           </View>
         )}
 
