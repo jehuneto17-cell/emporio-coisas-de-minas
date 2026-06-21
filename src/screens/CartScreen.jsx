@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   qtyNum: { fontSize: 15, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', minWidth: 16, textAlign: 'center' },
   couponCard: { backgroundColor: C.card, borderRadius: 16, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' },
   couponInput: { flex: 1, height: 44, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
-  couponText: { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
+  couponText: { flex: 1, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular', outlineStyle: 'none' },
   couponBtn: { height: 44, paddingHorizontal: 18, borderRadius: 8, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' },
   couponBtnText: { color: '#fff', fontSize: 13, fontFamily: 'WorkSans_600SemiBold' },
   summaryCard: { backgroundColor: C.card, borderRadius: 16, padding: 16 },
