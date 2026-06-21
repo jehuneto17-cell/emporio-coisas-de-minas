@@ -485,6 +485,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: emoji das categorias na HomeScreen** (2026-06-16) — `catCircle` aumentado para 64×64 com `borderRadius: 32` e fundo `C.softCream` (sem sombra); `catEmoji` com `fontSize: 28`, `lineHeight: 36` e `textAlign: 'center'` para centralização correta do emoji
 ✅ **Fix: categorias com nome completo e banner preenchendo o espaço** (2026-06-16) — `catName` com `numberOfLines={2}` e `lineHeight: 15`; `catItem` com `width: 72` para acomodar 2 linhas; imagem do banner com `resizeMode="cover"` e posição `absoluteFill` (`top/left/right/bottom: 0`, `width/height: 100%`) para preencher o container inteiro
 ✅ **HomeScreen redesenhada** (2026-06-16) — arquivo reescrito com nova arquitetura: `ProductCard` (lista horizontal) e `ProductGridCard` (grade 2 colunas) como componentes separados; `BannerCarousel` isolado com `ScrollView` horizontal paginado e timer auto-restart após interação manual; `SectionHeader` reutilizável; saudação dinâmica por horário (`greeting()`); seções condicionais — Banners, Categorias (emoji do Firestore), Destaques (`featured: true`), Novidades (ordenadas por `createdAt`), Mais Vendidos; badge do sino exibe count numérico real (`getUnreadCount`) com fallback `'9+'`; `addToCart` corrigido para `addItem` (nome real do CartContext); cards e grades navegam para `ProductDetail` via `onPress`
+✅ **Fix: espaço entre localização e saudação na HomeScreen** (2026-06-21) — `greetingWrap.marginTop` reduzido de `16` para `6` para aproximar a saudação da barra de localização acima
 
 ---
 
