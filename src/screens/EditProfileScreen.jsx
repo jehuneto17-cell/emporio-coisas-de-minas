@@ -46,13 +46,6 @@ export default function EditProfileScreen({ navigation }) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [birthDate, setBirthDate] = useState('');
-  const [cep, setCep] = useState('');
-  const [street, setStreet] = useState('');
-  const [number, setNumber] = useState('');
-  const [complement, setComplement] = useState('');
-  const [neighborhood, setNeighborhood] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('MG');
 
   useEffect(() => {
     if (!user) return;
@@ -61,13 +54,6 @@ export default function EditProfileScreen({ navigation }) {
       setName(p.name || '');
       setPhone(p.phone || '');
       setBirthDate(p.birthDate || '');
-      setCep(p.address?.cep || '');
-      setStreet(p.address?.street || '');
-      setNumber(p.address?.number || '');
-      setComplement(p.address?.complement || '');
-      setNeighborhood(p.address?.neighborhood || '');
-      setCity(p.address?.city || '');
-      setState(p.address?.state || 'MG');
     }).catch(() => {}).finally(() => setLoading(false));
   }, [user]);
 
@@ -79,7 +65,6 @@ export default function EditProfileScreen({ navigation }) {
         name: name.trim(),
         phone: phone.trim(),
         birthDate: birthDate.trim(),
-        address: { cep, street, number, complement, neighborhood, city, state },
       });
       Alert.alert('Sucesso', 'Perfil atualizado!', [{ text: 'OK', onPress: () => navigation.goBack() }]);
     } catch (e) {
@@ -135,35 +120,6 @@ export default function EditProfileScreen({ navigation }) {
               <Field label="Nome completo" value={name} onChangeText={setName} placeholder="Seu nome completo" icon="person-outline" />
               <Field label="WhatsApp" value={phone} onChangeText={setPhone} placeholder="(00) 00000-0000" keyboardType="phone-pad" icon="phone-portrait-outline" />
               <Field label="Data de nascimento" value={birthDate} onChangeText={setBirthDate} placeholder="DD/MM/AAAA" icon="calendar-outline" />
-            </View>
-
-            {/* Endereço */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardIconWrap}>
-                  <Ionicons name="location-outline" size={17} color={C.terra} />
-                </View>
-                <Text style={styles.cardTitle}>Endereço de entrega</Text>
-              </View>
-              <Field label="CEP" value={cep} onChangeText={setCep} placeholder="00000-000" keyboardType="numeric" />
-              <View style={styles.row}>
-                <View style={{ flex: 2.2 }}>
-                  <Field label="Rua" value={street} onChangeText={setStreet} placeholder="Nome da rua" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Field label="Número" value={number} onChangeText={setNumber} placeholder="Nº" keyboardType="numeric" />
-                </View>
-              </View>
-              <Field label="Complemento" value={complement} onChangeText={setComplement} placeholder="Apto, bloco..." />
-              <Field label="Bairro" value={neighborhood} onChangeText={setNeighborhood} placeholder="Seu bairro" />
-              <View style={styles.row}>
-                <View style={{ flex: 2.2 }}>
-                  <Field label="Cidade" value={city} onChangeText={setCity} placeholder="Sua cidade" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Field label="Estado" value={state} onChangeText={setState} placeholder="UF" />
-                </View>
-              </View>
             </View>
 
           </ScrollView>
