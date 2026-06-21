@@ -1,20 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Modal, ActivityIndicator } from 'react-native';
+import {
+  View, Text, TouchableOpacity, ScrollView, StyleSheet,
+  Modal, ActivityIndicator, Platform,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder } from '../services/firestore';
+import { addOrder, getAddresses } from '../services/firestore';
+
+// TODO: mover para variável de ambiente
+const MELHOR_ENVIO_TOKEN =
+  'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIxIiwianRpIjoiOWVkOGFmNWQ0NThlMjA0ZDQ2NjhjOGIzZjY2NmVhZDI0YmI5ZWI5MzE0ZTI5NzliYTg5MmUwOTc5ZTBhNWJhYjE4NmFiNzVmOTkzYTdhZDMiLCJpYXQiOjE3ODIwNzk5MjIuNDkxMzc3LCJuYmYiOjE3ODIwNzk5MjIuNDkxMzc5LCJleHAiOjE4MTM2MTU5MjIuNDc5MjU4LCJzdWIiOiI5ZjQ0Yzg3OC1iMTI3LTQ1ZmItOTdhZC0xNTEzNmExOTQzNmUiLCJzY29wZXMiOlsiY2FydC1yZWFkIiwiY2FydC13cml0ZSIsImNvbXBhbmllcy1yZWFkIiwiY29tcGFuaWVzLXdyaXRlIiwiY291cG9ucy1yZWFkIiwiY291cG9ucy13cml0ZSIsIm5vdGlmaWNhdGlvbnMtcmVhZCIsIm9yZGVycy1yZWFkIiwicHJvZHVjdHMtcmVhZCIsInByb2R1Y3RzLWRlc3Ryb3kiLCJwcm9kdWN0cy13cml0ZSIsInB1cmNoYXNlcy1yZWFkIiwic2hpcHBpbmctY2FsY3VsYXRlIiwic2hpcHBpbmctY2FuY2VsIiwic2hpcHBpbmctY2hlY2tvdXQiLCJzaGlwcGluZy1jb21wYW5pZXMiLCJzaGlwcGluZy1nZW5lcmF0ZSIsInNoaXBwaW5nLXByZXZpZXciLCJzaGlwcGluZy1wcmludCIsInNoaXBwaW5nLXNoYXJlIiwic2hpcHBpbmctdHJhY2tpbmciLCJlY29tbWVyY2Utc2hpcHBpbmciLCJ0cmFuc2FjdGlvbnMtcmVhZCIsInVzZXJzLXJlYWQiLCJ1c2Vycy13cml0ZSIsIndlYmhvb2tzLXJlYWQiLCJ3ZWJob29rcy13cml0ZSIsIndlYmhvb2tzLWRlbGV0ZSIsInRkZWFsZXItd2ViaG9vayJdfQ.dSU3PC7HKmrkhirRgo0XI7iKaj6-oOiC7xJpcwKhDUElDK-eUDYTHrhob9bHkVfv5cmHY2bdOwevr0oDk_EsuJ8xoguVp_20hIvbyGUgGsS9FYQ8rQek6ll73wqxHRvI1hDBmPLz3JoRYGRfmdC5Wx3pwq6k5wP2AI7O_601PXeqom1gUGP-njCvliMvTlzZ8TS6gkTXlp8Z2v42NgWBEM7UfwQ2Uib6ubHcYg-me7M0596M-zoMq8X2Eq3Y7ZQqPmOiXC1-GO4XRuoFtH5sEPOT5__zA8pIqVhowhtdWdknRdXbAcWxyj7jmvlTKysJCmP06cvL_XX2CcntozsnjQ_oz83ZbmcON3FR2AYdKGwBc9pFehHFTSE5dUlZkAiUoIZ6YZRJMQXzPBKieengh4Xwgwi6FNjTFueyMKqsjOgcDHouU3ilJJW3iEzJed_P9p5xSGrwdjg6Brw9X1brBIjg2O0ph4Stmu5vAccFsop1KzgdtD1rlVPQ2nXdJEWP6xv8A1mp-fkICUvTO1U5bQlGcijUVjp3xefk0ToBCyFi6YPOiUY5T7DG-3FElsxAL-RjaDe5Cg69pY-Qb6TuwMxoZ5G1UphxQYD9uK3ALdYOEK38v-DfXB649GfJGA_33VIYzdGu6l_i1pmBmjbaUWAfDkIQZGHtCnbsxY5m-QY';
+
+const CEP_ORIGEM = '37900900';
 
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
   const { items, totalItems, subtotal, discount, couponApplied, clearCart } = useCart();
-  const [method, setMethod] = useState('pac');
+
   const [tab, setTab] = useState('pix');
   const [seconds, setSeconds] = useState(15 * 60);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
+
+  // Endereço
+  const [deliveryAddress, setDeliveryAddress] = useState(null);
+  const [loadingAddress, setLoadingAddress] = useState(false);
+
+  // Frete
+  const [shippingOptions, setShippingOptions] = useState([]);
+  const [method, setMethod] = useState(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
+  const [shippingError, setShippingError] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -27,7 +46,74 @@ export default function CheckoutScreen({ navigation }) {
     return () => clearInterval(t);
   }, []);
 
-  const shippingCost = method === 'pac' ? 15.90 : 28.90;
+  // Carrega endereço padrão do usuário
+  useEffect(() => {
+    if (!user?.uid) return;
+    setLoadingAddress(true);
+    getAddresses(user.uid)
+      .then((list) => {
+        if (!list || list.length === 0) return;
+        const def = list.find((a) => a.isDefault) || list[0];
+        setDeliveryAddress(def);
+      })
+      .catch((e) => console.warn('[Checkout] getAddresses error', e))
+      .finally(() => setLoadingAddress(false));
+  }, [user?.uid]);
+
+  // Calcula frete quando o CEP do endereço está disponível
+  useEffect(() => {
+    if (!deliveryAddress?.cep) return;
+    const cepDest = deliveryAddress.cep.replace(/\D/g, '');
+    if (cepDest.length === 8) {
+      calculateShipping(cepDest);
+    }
+  }, [deliveryAddress?.cep]);
+
+  async function calculateShipping(cepDest) {
+    setLoadingShipping(true);
+    setShippingError(null);
+    setShippingOptions([]);
+    setMethod(null);
+    try {
+      const res = await fetch(
+        'https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${MELHOR_ENVIO_TOKEN}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'User-Agent': 'EmporioCoisasDeMinas (emporiominas00@gmail.com)',
+          },
+          body: JSON.stringify({
+            from: { postal_code: CEP_ORIGEM },
+            to: { postal_code: cepDest },
+            package: { height: 15, width: 20, length: 25, weight: 2 },
+            options: { receipt: false, own_hand: false },
+            services: '',
+          }),
+        }
+      );
+      const data = await res.json();
+      const valid = Array.isArray(data)
+        ? data.filter((opt) => !opt.error).sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
+        : [];
+      if (valid.length === 0) {
+        setShippingError('Não foi possível calcular o frete. Verifique o CEP.');
+      } else {
+        setShippingOptions(valid);
+        setMethod(valid[0].id);
+      }
+    } catch (e) {
+      console.warn('[Checkout] calculateShipping error', e);
+      setShippingError('Não foi possível calcular o frete. Verifique o CEP.');
+    } finally {
+      setLoadingShipping(false);
+    }
+  }
+
+  const selectedOption = shippingOptions.find((o) => o.id === method) || null;
+  const shippingCost = selectedOption ? parseFloat(selectedOption.price) : 0;
   const checkoutTotal = Math.max(0, subtotal - discount + shippingCost);
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
@@ -41,7 +127,10 @@ export default function CheckoutScreen({ navigation }) {
         shipping: shippingCost,
         total: checkoutTotal,
         paymentMethod: tab,
-        shippingMethod: method,
+        shippingMethod: selectedOption?.name || method,
+        shippingCompany: selectedOption?.company?.name || '',
+        shippingCost,
+        deliveryAddress: deliveryAddress || null,
       });
       clearCart();
       navigation.navigate('OrderConfirmation', { orderId });
@@ -52,6 +141,10 @@ export default function CheckoutScreen({ navigation }) {
       setConfirming(false);
     }
   }
+
+  const shippingLabel = selectedOption
+    ? `Frete ${selectedOption.company?.name || selectedOption.name}`
+    : 'Frete';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -119,15 +212,39 @@ export default function CheckoutScreen({ navigation }) {
           <View style={styles.cardHeader}>
             <Text style={styles.cardIcon}>📍</Text>
             <Text style={styles.cardTitle}>Endereço de Entrega</Text>
-            <TouchableOpacity style={{ marginLeft: 'auto' }}><Text style={styles.changeBtn}>Alterar</Text></TouchableOpacity>
+            <TouchableOpacity style={{ marginLeft: 'auto' }} onPress={() => navigation.navigate('Addresses')}>
+              <Text style={styles.changeBtn}>Alterar</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.addrName}>João Silva</Text>
-          <Text style={styles.addrLine}>Rua das Flores, 123 — Apto 45</Text>
-          <Text style={styles.addrCity}>Itaú de Minas · MG · CEP 37.790-000</Text>
-          <View style={styles.deliveryHint}>
-            <Ionicons name="time-outline" size={14} color={C.muted} />
-            <Text style={styles.deliveryText}>Entrega em até <Text style={styles.deliveryBold}>3 dias úteis</Text></Text>
-          </View>
+          {loadingAddress ? (
+            <ActivityIndicator size="small" color={C.brown} style={{ marginVertical: 8 }} />
+          ) : deliveryAddress ? (
+            <>
+              <Text style={styles.addrName}>{deliveryAddress.label || 'Endereço'}</Text>
+              <Text style={styles.addrLine}>
+                {deliveryAddress.street}{deliveryAddress.number ? `, ${deliveryAddress.number}` : ''}
+                {deliveryAddress.complement ? ` — ${deliveryAddress.complement}` : ''}
+              </Text>
+              <Text style={styles.addrCity}>
+                {deliveryAddress.city} · {deliveryAddress.state} · CEP {deliveryAddress.cep}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.addrLine}>
+              {isAuthenticated
+                ? 'Nenhum endereço cadastrado. Toque em "Alterar" para adicionar.'
+                : 'Faça login para usar um endereço salvo.'}
+            </Text>
+          )}
+          {selectedOption && (
+            <View style={styles.deliveryHint}>
+              <Ionicons name="time-outline" size={14} color={C.muted} />
+              <Text style={styles.deliveryText}>
+                Entrega em até{' '}
+                <Text style={styles.deliveryBold}>{selectedOption.delivery_time} dias úteis</Text>
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Shipping */}
@@ -136,20 +253,49 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={styles.cardIcon}>🚚</Text>
             <Text style={styles.cardTitle}>Método de Envio</Text>
           </View>
-          {[
-            { id: 'pac', title: 'Padrão — Correios PAC', sub: '5 a 8 dias úteis', price: 'R$ 15,90' },
-            { id: 'sedex', title: 'Expresso — SEDEX', sub: '2 a 3 dias úteis', price: 'R$ 28,90' },
-          ].map((opt) => (
-            <TouchableOpacity key={opt.id} onPress={() => setMethod(opt.id)}
-              style={[styles.shippingOpt, method === opt.id && styles.shippingOptActive]}>
+
+          {loadingShipping && (
+            <View style={styles.shippingLoader}>
+              <ActivityIndicator size="small" color={C.brown} />
+              <Text style={styles.shippingLoaderText}>Calculando frete…</Text>
+            </View>
+          )}
+
+          {!loadingShipping && shippingError && (
+            <View style={styles.shippingErrorWrap}>
+              <Ionicons name="alert-circle-outline" size={20} color={C.terra} />
+              <Text style={styles.shippingErrorText}>{shippingError}</Text>
+              {deliveryAddress?.cep && (
+                <TouchableOpacity
+                  style={styles.retryBtn}
+                  onPress={() => calculateShipping(deliveryAddress.cep.replace(/\D/g, ''))}
+                >
+                  <Text style={styles.retryBtnText}>Tentar novamente</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          {!loadingShipping && !shippingError && shippingOptions.length === 0 && !deliveryAddress && (
+            <Text style={styles.shippingPlaceholder}>
+              Adicione um endereço de entrega para calcular o frete.
+            </Text>
+          )}
+
+          {!loadingShipping && shippingOptions.map((opt) => (
+            <TouchableOpacity
+              key={opt.id}
+              onPress={() => setMethod(opt.id)}
+              style={[styles.shippingOpt, method === opt.id && styles.shippingOptActive]}
+            >
               <View style={[styles.radio, method === opt.id && styles.radioActive]}>
                 {method === opt.id && <View style={styles.radioDot} />}
               </View>
               <View style={styles.shippingInfo}>
-                <Text style={styles.shippingTitle}>{opt.title}</Text>
-                <Text style={styles.shippingSub}>{opt.sub}</Text>
+                <Text style={styles.shippingTitle}>{opt.name}</Text>
+                <Text style={styles.shippingSub}>{opt.company?.name} · {opt.delivery_time} dias úteis</Text>
               </View>
-              <Text style={styles.shippingPrice}>{opt.price}</Text>
+              <Text style={styles.shippingPrice}>{fmt(parseFloat(opt.price))}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -205,7 +351,10 @@ export default function CheckoutScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.summaryTitle}>Resumo</Text>
           <SummaryRow label={`${totalItems} ${totalItems === 1 ? 'item' : 'itens'}`} value={fmt(subtotal)} />
-          <SummaryRow label={method === 'pac' ? 'Frete PAC' : 'Frete SEDEX'} value={fmt(shippingCost)} />
+          <SummaryRow
+            label={shippingLabel}
+            value={loadingShipping ? '…' : shippingCost > 0 ? fmt(shippingCost) : '—'}
+          />
           {couponApplied && <SummaryRow label="Desconto" value={`− ${fmt(discount)}`} highlight />}
           <View style={styles.summaryDivider} />
           <View style={styles.totalRow}>
@@ -270,6 +419,13 @@ const styles = StyleSheet.create({
   deliveryHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border, borderStyle: 'dashed' },
   deliveryText: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' },
   deliveryBold: { color: C.brown, fontFamily: 'WorkSans_600SemiBold' },
+  shippingLoader: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14 },
+  shippingLoaderText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular' },
+  shippingErrorWrap: { alignItems: 'center', gap: 8, paddingVertical: 14 },
+  shippingErrorText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' },
+  retryBtn: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: C.terra },
+  retryBtnText: { fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
+  shippingPlaceholder: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', paddingVertical: 10 },
   shippingOpt: { borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
   shippingOptActive: { borderColor: C.brown, backgroundColor: '#f6f3ef' },
   radio: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },

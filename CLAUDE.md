@@ -492,13 +492,13 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: botão "-" no CartScreen remove item quando quantidade chega a 1** (2026-06-21) — `onPress` do botão "-" em `CartScreen` alterado de `updateQuantity(it.id, Math.max(1, it.qty - 1))` (que travava em 1) para lógica condicional: se `it.qty <= 1` chama `removeItem(it.id)`, senão `updateQuantity(it.id, it.qty - 1)`; produto é removido automaticamente ao zerar
 ✅ **EditProfileScreen: seção de endereço removida** (2026-06-21) — estados de endereço (`cep`, `street`, `number`, `complement`, `neighborhood`, `city`, `state`), preenchimento no `useEffect` e card "Endereço de entrega" removidos; `handleSave` atualizado para salvar apenas `name`, `phone` e `birthDate`; endereços gerenciados pela `AddressesScreen` dedicada
 ✅ **Fix: outline removido no input de cupom do CartScreen** (2026-06-21) — `outlineStyle: 'none'` adicionado ao estilo `couponText`; remove o outline preto padrão do navegador web no campo de cupom
+✅ **Integração Melhor Envio + endereço real no CheckoutScreen** (2026-06-21) — `CheckoutScreen` reescrito: (1) endereço padrão carregado do Firestore via `getAddresses(uid)` (fallback para o primeiro da lista); exibido com label, logradouro, cidade/estado/CEP reais; botão "Alterar" navega para `AddressesScreen`; (2) frete calculado via API sandbox do Melhor Envio (`POST /api/v2/me/shipment/calculate`) com CEP de origem fixo `37900-900`; opções filtradas (`!opt.error`), ordenadas por preço, primeira selecionada automaticamente; loading spinner, mensagem de erro e botão "Tentar novamente"; (3) `shippingCost` derivado do preço real da opção selecionada; (4) `handleConfirm` salva `shippingMethod`, `shippingCompany`, `shippingCost` e `deliveryAddress` reais no Firestore; token Melhor Envio como constante com `// TODO: mover para variável de ambiente`
 
 ---
 
 ## 11. O Que Ainda Falta
 
 ❌ **Seed do Firestore pendente** — coleção `/produtos` ainda vazia em produção. Use `DB.seedDadosIniciais()` no console do painel admin para popular. O seed já inclui todos os campos necessários (`visible`, `featured`, `description`, `longDesc`, `producer`, `location`) e categorias em minúsculas. Sem o seed, as telas exibem empty state
-❌ **Endereço de entrega no Checkout** — `EditProfileScreen` já salva endereço no Firestore em `/users/{uid}.address`; `CheckoutScreen` ainda exibe placeholder hardcoded ("João Silva / Rua das Flores") — falta ler o endereço real do perfil e exibir no resumo do pedido
 ❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados; `addOrder` salva o pedido mas não processa pagamento real
 ❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados
 ❌ **Rastreamento real** — timeline estática, sem integração Correios
@@ -514,9 +514,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 
 1. **Seed do Firestore** — usar `DB.seedDadosIniciais()` no console do painel admin (campos completos já configurados). Depois administrar produtos pelo painel (`edit-app.jsx`) ou direto no Firebase Console
 
-2. **Endereço de entrega no Checkout** — `EditProfileScreen` já salva endereço em `/users/{uid}.address`; agora falta `CheckoutScreen` ler esse endereço e exibir no resumo, em vez do placeholder hardcoded
-
-3. **Gateway de pagamento real** — integrar PIX (Mercado Pago ou Pagar.me) e cartão (Stripe ou Asaas)
+2. **Gateway de pagamento real** — integrar PIX (Mercado Pago ou Pagar.me) e cartão (Stripe ou Asaas)
 
 4. **Rastreamento Correios** — integrar API dos Correios com o número de rastreio
 
