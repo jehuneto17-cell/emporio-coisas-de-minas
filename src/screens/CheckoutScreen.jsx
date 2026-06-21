@@ -12,6 +12,10 @@ import { addOrder, getAddresses } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
+const FRETE_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? 'https://emporio-coisas-de-minas.vercel.app/api/calcular-frete'
+  : 'http://localhost:8081/api/calcular-frete';
+
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
   const { items, totalItems, subtotal, discount, couponApplied, clearCart } = useCart();
@@ -74,7 +78,7 @@ export default function CheckoutScreen({ navigation }) {
     setShippingOptions([]);
     setMethod(null);
     try {
-      const res = await fetch('/api/calcular-frete', {
+      const res = await fetch(FRETE_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
