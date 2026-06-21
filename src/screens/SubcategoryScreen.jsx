@@ -25,7 +25,14 @@ export default function SubcategoryScreen({ navigation, route }) {
   useEffect(() => {
     if (!parentCategory?.id) return;
     getSubcategories(parentCategory.id)
-      .then(setSubcategories)
+      .then(subs => {
+        if (subs.length === 0) {
+          // Sem subcategorias — navegar direto para os produtos
+          navigation.replace('Listing', { category: parentCategory });
+        } else {
+          setSubcategories(subs);
+        }
+      })
       .catch(err => console.warn('[SubcategoryScreen]', err))
       .finally(() => setLoading(false));
   }, [parentCategory?.id]);
