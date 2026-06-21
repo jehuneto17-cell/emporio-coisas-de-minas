@@ -78,7 +78,7 @@ export default function CartScreen({ navigation }) {
                 </View>
               </View>
               <View style={styles.qtyRow}>
-                <TouchableOpacity onPress={() => updateQuantity(it.id, Math.max(1, it.qty - 1))} style={styles.qtyBtn}>
+                <TouchableOpacity onPress={() => { if (it.qty <= 1) { removeItem(it.id); } else { updateQuantity(it.id, it.qty - 1); } }} style={styles.qtyBtn}>
                   <Ionicons name="remove" size={14} color={C.muted} />
                 </TouchableOpacity>
                 <Text style={styles.qtyNum}>{it.qty}</Text>
