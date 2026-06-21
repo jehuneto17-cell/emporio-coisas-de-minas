@@ -58,8 +58,11 @@ export default function CheckoutScreen({ navigation }) {
 
   // Calcula frete quando o CEP do endereço está disponível
   useEffect(() => {
+    console.log('[Checkout] deliveryAddress:', deliveryAddress);
+    console.log('[Checkout] cep raw:', deliveryAddress?.cep);
     if (!deliveryAddress?.cep) return;
     const cepDest = deliveryAddress.cep.replace(/\D/g, '');
+    console.log('[Checkout] cepDest limpo:', cepDest);
     if (cepDest.length === 8) {
       calculateShipping(cepDest);
     }
