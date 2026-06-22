@@ -42,6 +42,10 @@ function mapProduct(d) {
     weights: raw.weights || [],
     colors: raw.colors || [],
     categoryLabel: raw.categoryLabel || raw.category || '',
+    weight: raw.weight || 0,
+    weightHeight: raw.weightHeight || 0,
+    weightWidth: raw.weightWidth || 0,
+    weightLength: raw.weightLength || 0,
   };
 }
 

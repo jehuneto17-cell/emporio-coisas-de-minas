@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder, getAddresses } from '../services/firestore';
+import { addOrder, getAddresses, getProductById } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
@@ -62,11 +62,8 @@ export default function CheckoutScreen({ navigation }) {
 
   // Calcula frete quando o CEP do endereço está disponível
   useEffect(() => {
-    console.log('[Checkout] deliveryAddress:', deliveryAddress);
-    console.log('[Checkout] cep raw:', deliveryAddress?.cep);
     if (!deliveryAddress?.cep) return;
     const cepDest = deliveryAddress.cep.replace(/\D/g, '');
-    console.log('[Checkout] cepDest limpo:', cepDest);
     if (cepDest.length === 8) {
       calculateShipping(cepDest);
     }
@@ -78,10 +75,51 @@ export default function CheckoutScreen({ navigation }) {
     setShippingOptions([]);
     setMethod(null);
 
+    // Busca dados de peso/dimensões de cada item do carrinho no Firestore
+    // Fallback seguro: se o produto não tiver dados, usa valores padrão
+    let totalWeight = 0;
+    let maxHeight = 10;
+    let maxWidth = 15;
+    let totalLength = 0;
+
+    try {
+      const productDataList = await Promise.all(
+        items.map(item => getProductById(String(item.id)))
+      );
+      productDataList.forEach((product, idx) => {
+        const qty = items[idx]?.qty || 1;
+        const w = product?.weight || 0.3;
+        const h = product?.weightHeight || 10;
+        const wi = product?.weightWidth || 15;
+        const l = product?.weightLength || 10;
+        totalWeight += w * qty;
+        maxHeight = Math.max(maxHeight, h);
+        maxWidth = Math.max(maxWidth, wi);
+        totalLength += l * qty;
+      });
+    } catch (e) {
+      console.warn('[Frete] erro ao buscar dimensões dos produtos, usando fallback:', e);
+      totalWeight = 1;
+      maxHeight = 10;
+      maxWidth = 15;
+      totalLength = 20;
+    }
+
+    // Garante mínimos exigidos pelo Melhor Envio
+    totalWeight = Math.max(totalWeight, 0.1);
+    maxHeight = Math.max(maxHeight, 2);
+    maxWidth = Math.max(maxWidth, 11);
+    totalLength = Math.max(totalLength, 16);
+
     const body = {
       from: { postal_code: CEP_ORIGEM },
       to: { postal_code: cepDest },
-      package: { height: 15, width: 20, length: 25, weight: 2 },
+      package: {
+        height: Math.round(maxHeight),
+        width: Math.round(maxWidth),
+        length: Math.round(totalLength),
+        weight: parseFloat(totalWeight.toFixed(2)),
+      },
       options: { receipt: false, own_hand: false },
       services: '',
     };
