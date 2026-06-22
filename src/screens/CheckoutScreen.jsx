@@ -157,9 +157,17 @@ export default function CheckoutScreen({ navigation }) {
         return;
       }
 
-      const valid = data
+      // Transportadoras preferidas — mostradas primeiro quando disponíveis
+      const PREFERRED_SERVICES = ['.Package', 'PAC', 'SEDEX', 'Express'];
+
+      const allValid = data
         .filter((opt) => !opt.error)
         .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+
+      const preferred = allValid.filter((opt) => PREFERRED_SERVICES.includes(opt.name));
+
+      // Se nenhuma preferida cobrir o CEP, mostra todas as disponíveis como fallback
+      const valid = preferred.length > 0 ? preferred : allValid;
 
       if (valid.length === 0) {
         console.warn('[Frete] nenhuma transportadora disponível para o CEP', cepDest);
