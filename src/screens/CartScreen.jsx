@@ -116,16 +116,12 @@ export default function CartScreen({ navigation }) {
           <View style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>Resumo do Pedido</Text>
             <SummaryRow label={`Subtotal (${items.length} itens)`} value={fmt(subtotal)} />
-            <SummaryRow label="Frete" value={fmt(shipping)} />
+            <SummaryRow label="Frete" value="Calculado no checkout" />
             {discount > 0 && <SummaryRow label="Desconto" value={`− ${fmt(discount)}`} highlight />}
             <View style={styles.summaryDivider} />
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{fmt(total)}</Text>
-            </View>
-            <View style={styles.deliveryHint}>
-              <Ionicons name="car-outline" size={14} color={C.terra} />
-              <Text style={styles.deliveryText}>Entrega em até <Text style={styles.deliveryBold}>3 dias úteis</Text></Text>
+              <Text style={styles.totalLabel}>Subtotal</Text>
+              <Text style={styles.totalValue}>{fmt(subtotal - discount)}</Text>
             </View>
           </View>
         </View>
@@ -134,7 +130,7 @@ export default function CartScreen({ navigation }) {
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.checkoutBtn} onPress={() => navigation.navigate('Checkout')}>
-          <Text style={styles.checkoutText}>Finalizar Pedido · {fmt(total)}</Text>
+          <Text style={styles.checkoutText}>Finalizar Pedido · {fmt(subtotal - discount)}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
