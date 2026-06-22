@@ -77,32 +77,68 @@ export default function CheckoutScreen({ navigation }) {
     setShippingError(null);
     setShippingOptions([]);
     setMethod(null);
+
+    const body = {
+      from: { postal_code: CEP_ORIGEM },
+      to: { postal_code: cepDest },
+      package: { height: 15, width: 20, length: 25, weight: 2 },
+      options: { receipt: false, own_hand: false },
+      services: '',
+    };
+
+    // Timeout de 15s para o fetch nunca travar o spinner indefinidamente.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
+      console.log('[Frete] iniciando fetch para:', FRETE_API_URL);
+      console.log('[Frete] body:', JSON.stringify(body));
+
       const res = await fetch(FRETE_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: { postal_code: CEP_ORIGEM },
-          to: { postal_code: cepDest },
-          package: { height: 15, width: 20, length: 25, weight: 2 },
-          options: { receipt: false, own_hand: false },
-          services: '',
-        }),
+        body: JSON.stringify(body),
+        signal: controller.signal,
       });
+
+      console.log('[Frete] status HTTP:', res.status, res.ok);
+
       const data = await res.json();
-      const valid = Array.isArray(data)
-        ? data.filter((opt) => !opt.error).sort((a, b) => parseFloat(a.price) - parseFloat(b.price))
-        : [];
+      console.log('[Frete] data recebida:', JSON.stringify(data));
+
+      // O Melhor Envio devolve um array de transportadoras quando OK.
+      // Qualquer outra coisa (ex.: { message: 'Unauthenticated.' }) é erro.
+      if (!res.ok || !Array.isArray(data)) {
+        const apiMsg = data?.message || data?.error;
+        console.error('[Frete] resposta inesperada da API:', apiMsg || data);
+        setShippingError(
+          apiMsg
+            ? `Não foi possível calcular o frete (${apiMsg}).`
+            : 'Não foi possível calcular o frete. Tente novamente.'
+        );
+        return;
+      }
+
+      const valid = data
+        .filter((opt) => !opt.error)
+        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
+
       if (valid.length === 0) {
-        setShippingError('Não foi possível calcular o frete. Verifique o CEP.');
+        console.warn('[Frete] nenhuma transportadora disponível para o CEP', cepDest);
+        setShippingError('Nenhuma opção de frete disponível para este CEP.');
       } else {
         setShippingOptions(valid);
         setMethod(valid[0].id);
       }
     } catch (e) {
-      console.warn('[Checkout] calculateShipping error', e);
-      setShippingError('Não foi possível calcular o frete. Verifique o CEP.');
+      console.error('[Frete] erro no fetch:', e?.message, e);
+      setShippingError(
+        e?.name === 'AbortError'
+          ? 'O cálculo de frete demorou demais. Tente novamente.'
+          : 'Não foi possível calcular o frete. Verifique o CEP.'
+      );
     } finally {
+      clearTimeout(timeoutId);
       setLoadingShipping(false);
     }
   }
