@@ -154,9 +154,21 @@ export default function ProductDetailScreen({ navigation, route }) {
 
           <View style={styles.deliveryCard}>
             <Ionicons name="car-outline" size={16} color={C.terra} />
-            <Text style={styles.deliveryText}>
-              Entrega em até <Text style={styles.deliveryBold}>3 dias úteis</Text> · Frete a partir de <Text style={styles.deliveryBold}>R$ 15,90</Text>
-            </Text>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.deliveryText}>
+                Frete calculado no checkout com base no seu CEP.
+              </Text>
+              {product.weight > 0 && (
+                <Text style={styles.deliveryText}>
+                  📦 <Text style={styles.deliveryBold}>Peso:</Text> {product.weight < 1
+                    ? `${Math.round(product.weight * 1000)}g`
+                    : `${product.weight}kg`}
+                  {product.weightHeight > 0 && product.weightWidth > 0 && product.weightLength > 0
+                    ? `  ·  ${product.weightHeight}×${product.weightWidth}×${product.weightLength} cm`
+                    : ''}
+                </Text>
+              )}
+            </View>
           </View>
 
           {similares.length > 0 && (
