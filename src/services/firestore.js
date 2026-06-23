@@ -122,6 +122,32 @@ export async function addOrder(uid, orderData) {
   return orderId;
 }
 
+export async function getPedidoAdmin(orderId) {
+  try {
+    const snap = await getDoc(doc(db, 'pedidos', orderId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+  } catch (e) {
+    console.warn('[getPedidoAdmin]', e.message);
+    return null;
+  }
+}
+
+export async function getTrackingInfo(trackingCode) {
+  if (!trackingCode || trackingCode === '—' || trackingCode.trim() === '') return null;
+  try {
+    const res = await fetch(
+      `https://emporio-coisas-de-minas.vercel.app/api/rastrear?codigo=${trackingCode}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.warn('[getTrackingInfo]', e.message);
+    return null;
+  }
+}
+
 export async function addPedidoAdmin(uid, orderId, orderData, userProfile) {
   try {
     const customerName = userProfile?.name || 'Cliente';

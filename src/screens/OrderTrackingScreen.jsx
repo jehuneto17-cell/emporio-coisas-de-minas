@@ -1,18 +1,113 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, TouchableOpacity, ScrollView, StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C } from '../theme';
+import * as Clipboard from 'expo-clipboard';
+import { C, fmt } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { getOrder, getPedidoAdmin } from '../services/firestore';
 
-const TIMELINE = [
-  { label: 'Pedido Confirmado', date: '24 Mai · 10:32', done: true, desc: 'Seu pagamento foi aprovado via Pix' },
-  { label: 'Preparando Pedido', date: '24 Mai · 14:15', done: true, desc: 'A Fazenda São João está preparando seu pedido' },
-  { label: 'Em Transporte', date: 'Previsão: 25 Mai', done: false, desc: 'Seu pedido será coletado pelo Correios' },
-  { label: 'Saiu para Entrega', date: 'Previsão: 27 Mai', done: false, desc: '' },
-  { label: 'Entregue', date: 'Previsão: 27 Mai', done: false, desc: '' },
-];
+function formatDate(ts) {
+  if (!ts) return '—';
+  try {
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) +
+      ' · ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch { return '—'; }
+}
 
-export default function OrderTrackingScreen({ navigation }) {
+function buildTimeline(status, createdAt, tracking) {
+  const statuses = [
+    { key: 'pendente',    label: 'Pedido Confirmado',  desc: 'Seu pagamento foi recebido' },
+    { key: 'preparando',  label: 'Preparando Pedido',   desc: 'Seu pedido está sendo preparado' },
+    { key: 'enviado',     label: 'Enviado',              desc: tracking ? `Código: ${tracking}` : 'Pedido enviado' },
+    { key: 'em trânsito', label: 'Em Transporte',        desc: 'Seu pedido está a caminho' },
+    { key: 'entregue',    label: 'Entregue',             desc: 'Pedido entregue com sucesso!' },
+  ];
+
+  const statusOrder = ['pendente', 'preparando', 'enviado', 'em trânsito', 'entregue'];
+  const currentIndex = statusOrder.findIndex(s =>
+    (status || 'pendente').toLowerCase().includes(s)
+  );
+
+  return statuses.map((s, i) => ({
+    ...s,
+    done: i <= (currentIndex === -1 ? 0 : currentIndex),
+    date: i === 0 ? formatDate(createdAt) : i <= currentIndex ? 'Concluído' : 'Pendente',
+  }));
+}
+
+function getStatusLabel(s) {
+  if (!s) return 'Pendente';
+  const sl = s.toLowerCase();
+  if (sl === 'entregue') return 'Entregue';
+  if (sl.includes('trânsito') || sl.includes('transporte')) return 'Em Transporte';
+  if (sl === 'enviado') return 'Enviado';
+  if (sl === 'preparando') return 'Preparando';
+  return 'Aguardando';
+}
+
+export default function OrderTrackingScreen({ navigation, route }) {
+  const { user } = useAuth();
+  const orderId = route.params?.orderId;
+
+  const [order, setOrder] = useState(null);
+  const [pedidoAdmin, setPedidoAdmin] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!user?.uid || !orderId) {
+      setLoading(false);
+      return;
+    }
+    Promise.all([
+      getOrder(user.uid, orderId),
+      getPedidoAdmin(orderId),
+    ]).then(([orderData, adminData]) => {
+      setOrder(orderData);
+      setPedidoAdmin(adminData);
+    }).catch(e => console.warn('[OrderTracking]', e))
+      .finally(() => setLoading(false));
+  }, [orderId, user?.uid]);
+
+  async function handleCopy(text) {
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {}
+  }
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={22} color={C.brown} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Rastrear Pedido</Text>
+          <View style={{ width: 38 }} />
+        </View>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={C.brown} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const status = pedidoAdmin?.status || order?.status || 'pendente';
+  const tracking = pedidoAdmin?.tracking || order?.tracking || '';
+  const shippingMethod = order?.shippingMethod || pedidoAdmin?.shipping || '—';
+  const shippingCompany = order?.shippingCompany || '—';
+  const deliveryAddress = order?.deliveryAddress || pedidoAdmin?.deliveryAddress || {};
+  const createdAt = order?.createdAt || pedidoAdmin?.createdAt;
+  const timeline = buildTimeline(status, createdAt, tracking);
+  const shortId = '#' + String(orderId || '').slice(-6);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -28,39 +123,41 @@ export default function OrderTrackingScreen({ navigation }) {
         <View style={styles.orderBadge}>
           <View>
             <Text style={styles.orderLabel}>Pedido</Text>
-            <Text style={styles.orderNum}>#1043</Text>
+            <Text style={styles.orderNum}>{shortId}</Text>
           </View>
           <View style={styles.statusBadge}>
             <Ionicons name="car-outline" size={14} color={C.terra} />
-            <Text style={styles.statusText}>Em Trânsito</Text>
+            <Text style={styles.statusText}>{getStatusLabel(status)}</Text>
           </View>
-        </View>
-
-        {/* Map Placeholder */}
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map-outline" size={48} color={C.border} />
-          <Text style={styles.mapText}>Rastreamento em tempo real</Text>
         </View>
 
         {/* Carrier Info */}
         <View style={styles.carrierCard}>
           <View style={styles.carrierInfo}>
             <Text style={styles.carrierLabel}>Transportadora</Text>
-            <Text style={styles.carrierName}>Correios PAC</Text>
+            <Text style={styles.carrierName}>
+              {shippingCompany !== '—' ? `${shippingCompany} · ${shippingMethod}` : shippingMethod}
+            </Text>
           </View>
-          <View style={styles.carrierCode}>
-            <Text style={styles.codeLabel}>Código</Text>
-            <Text style={styles.codeValue}>AA123456789BR</Text>
-          </View>
-          <TouchableOpacity style={styles.copyBtn}>
-            <Ionicons name="copy-outline" size={16} color={C.terra} />
-          </TouchableOpacity>
+          {tracking ? (
+            <>
+              <View style={styles.carrierCode}>
+                <Text style={styles.codeLabel}>Código</Text>
+                <Text style={styles.codeValue}>{tracking}</Text>
+              </View>
+              <TouchableOpacity style={styles.copyBtn} onPress={() => handleCopy(tracking)}>
+                <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color={C.terra} />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Text style={styles.noTracking}>Código ainda não disponível</Text>
+          )}
         </View>
 
         {/* Timeline */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Histórico</Text>
-          {TIMELINE.map((step, i) => (
+          {timeline.map((step, i) => (
             <View key={i} style={styles.timelineItem}>
               <View style={styles.timelineLeft}>
                 <View style={[styles.timelineDot, step.done && styles.timelineDotDone]}>
@@ -68,7 +165,7 @@ export default function OrderTrackingScreen({ navigation }) {
                     ? <Ionicons name="checkmark" size={11} color="#fff" />
                     : <View style={styles.emptyDot} />}
                 </View>
-                {i < TIMELINE.length - 1 && (
+                {i < timeline.length - 1 && (
                   <View style={[styles.timelineConnector, step.done && styles.connectorDone]} />
                 )}
               </View>
@@ -87,9 +184,17 @@ export default function OrderTrackingScreen({ navigation }) {
             <Ionicons name="location-sharp" size={16} color={C.terra} />
             <Text style={styles.cardTitle}>Endereço de Entrega</Text>
           </View>
-          <Text style={styles.addrName}>João Silva</Text>
-          <Text style={styles.addrLine}>Rua das Flores, 123 — Apto 45</Text>
-          <Text style={styles.addrCity}>Itaú de Minas · MG · CEP 37.790-000</Text>
+          <Text style={styles.addrName}>{deliveryAddress.label || 'Endereço de entrega'}</Text>
+          <Text style={styles.addrLine}>
+            {deliveryAddress.street
+              ? `${deliveryAddress.street}, ${deliveryAddress.number}${deliveryAddress.complement ? ' — ' + deliveryAddress.complement : ''}`
+              : '—'}
+          </Text>
+          <Text style={styles.addrCity}>
+            {deliveryAddress.city
+              ? `${deliveryAddress.city} · ${deliveryAddress.state} · CEP ${deliveryAddress.cep}`
+              : '—'}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -106,8 +211,6 @@ const styles = StyleSheet.create({
   orderNum: { fontSize: 22, color: C.brown, fontFamily: 'PlusJakartaSans_800ExtraBold' },
   statusBadge: { backgroundColor: '#fef3e2', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusText: { fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
-  mapPlaceholder: { height: 160, backgroundColor: C.chip, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 12, borderWidth: 1, borderColor: C.border },
-  mapText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular' },
   carrierCard: { backgroundColor: C.card, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   carrierInfo: { flex: 1 },
   carrierLabel: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular' },
@@ -116,6 +219,7 @@ const styles = StyleSheet.create({
   codeLabel: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular' },
   codeValue: { fontSize: 12, color: C.ink, fontFamily: 'WorkSans_600SemiBold', marginTop: 2 },
   copyBtn: { padding: 8 },
+  noTracking: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', fontStyle: 'italic' },
   card: { backgroundColor: C.card, borderRadius: 16, padding: 16, marginBottom: 12 },
   cardTitle: { fontSize: 15, color: C.brown, fontFamily: 'PlusJakartaSans_600SemiBold', marginBottom: 14 },
   timelineItem: { flexDirection: 'row', gap: 12 },

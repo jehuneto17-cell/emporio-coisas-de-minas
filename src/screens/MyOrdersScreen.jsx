@@ -91,7 +91,7 @@ export default function MyOrdersScreen({ navigation }) {
     return (
       <TouchableOpacity
         style={styles.orderCard}
-        onPress={() => navigation.navigate('OrderTracking')}
+        onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
         activeOpacity={0.8}
       >
         {/* Top row */}

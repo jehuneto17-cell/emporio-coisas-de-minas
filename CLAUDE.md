@@ -504,6 +504,8 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: frete e total corretos no CartScreen** (2026-06-22) — `SummaryRow` de frete alterado para texto `"Calculado no checkout"` (sem valor fixo); linha "Entrega em até 3 dias úteis" removida; label "Total" alterado para "Subtotal" e valor trocado de `total` (que incluía R$ 15,90 fixo) para `subtotal - discount`; botão "Finalizar Pedido" também atualizado para `subtotal - discount`
 
 ✅ **Espelho de pedidos na coleção `/pedidos` para o painel admin** (2026-06-23) — `addPedidoAdmin(uid, orderId, orderData, userProfile)` adicionado em `firestore.js`: grava em `/pedidos/{orderId}` os campos esperados pelo painel admin (`customer`, `customerEmail`, `customerPhone`, `initials`, `tint`, `city`, `number`, `total`, `freight`, `shipping`, `payment`, `status`, `tracking`, `products[]`, `address`, `deliveryAddress`, `createdAt`, `updatedAt`). `CheckoutScreen` atualizado: importa `addPedidoAdmin` e `getUserProfile`; logo após salvar em `/users/{uid}/orders`, chama `addPedidoAdmin` com os dados do pedido e o perfil do usuário; erros são capturados silenciosamente (não bloqueiam o fluxo do checkout)
+✅ **OrderTrackingScreen — dados reais do Firestore** (2026-06-23) — tela reescrita com dados dinâmicos: busca em paralelo `getOrder(uid, orderId)` (coleção do usuário) e `getPedidoAdmin(orderId)` (espelho `/pedidos`); mescla status, código de rastreamento, transportadora e endereço priorizando os dados do admin (atualizados pelo painel); `buildTimeline()` constrói as 5 etapas com base no `status` real; `ActivityIndicator` durante carregamento; botão "Copiar código" usa `expo-clipboard`; placeholder estático e mapa removidos. `getPedidoAdmin(orderId)` e `getTrackingInfo(trackingCode)` adicionados em `firestore.js`
+✅ **MyOrdersScreen — navegação passa `orderId` para OrderTrackingScreen** (2026-06-23) — `onPress` do card de pedido atualizado para `navigation.navigate('OrderTracking', { orderId: o.id })`, permitindo que a tela de rastreamento carregue o pedido correto
 
 ---
 
@@ -513,7 +515,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados; `addOrder` salva o pedido mas não processa pagamento real
 ❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados
 ❌ **Token válido do Melhor Envio** — 🔴 **BLOQUEADOR ATIVO DO FRETE.** O token atual (em `api/calcular-frete.js`) é rejeitado com `{"message":"Unauthenticated."}` no sandbox e na produção. **Como resolver:** (1) gerar um novo token no painel sandbox (https://sandbox.melhorenvio.com.br → Configurações → Tokens, com escopo `shipping-calculate`); (2) no Vercel, definir a env var `MELHOR_ENVIO_TOKEN` com o novo valor (Settings → Environment Variables) e fazer redeploy; (3) o código já lê dessa env var automaticamente. Enquanto isso, o CheckoutScreen exibe a mensagem de erro real e botão "Tentar novamente" (sem travar o spinner)
-❌ **Rastreamento real** — timeline estática, sem integração Correios
+❌ **Rastreamento real** — `getTrackingInfo()` implementado mas endpoint `/api/rastrear` ainda não existe no Vercel; integração Correios pendente
 ❌ **Admin via Custom Claims** — atualmente por e-mail no token (menos seguro)
 ❌ **TypeScript** — projeto todo em JS
 ❌ **ESLint + Prettier** — sem formatação automática
