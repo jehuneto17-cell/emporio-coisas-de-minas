@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder, getAddresses, getProductById } from '../services/firestore';
+import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
@@ -209,6 +209,23 @@ export default function CheckoutScreen({ navigation }) {
         shippingCost,
         deliveryAddress: deliveryAddress || null,
       });
+      // Espelha o pedido na coleção /pedidos para o painel admin
+      try {
+        const userProfile = await getUserProfile(user.uid);
+        await addPedidoAdmin(user.uid, orderId, {
+          items,
+          total: checkoutTotal,
+          subtotal,
+          discount,
+          shippingMethod: selectedOption?.name || '',
+          shippingCompany: selectedOption?.company?.name || '',
+          shippingCost,
+          deliveryAddress,
+          paymentMethod: tab,
+        }, userProfile);
+      } catch (e) {
+        console.warn('[Checkout] addPedidoAdmin error', e);
+      }
       clearCart();
       navigation.navigate('OrderConfirmation', { orderId });
     } catch (e) {

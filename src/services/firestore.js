@@ -122,6 +122,53 @@ export async function addOrder(uid, orderData) {
   return orderId;
 }
 
+export async function addPedidoAdmin(uid, orderId, orderData, userProfile) {
+  try {
+    const customerName = userProfile?.name || 'Cliente';
+    const initials = customerName.substring(0, 2).toUpperCase();
+    await setDoc(doc(db, 'pedidos', orderId), {
+      uid,
+      customer: customerName,
+      customerEmail: userProfile?.email || '',
+      customerPhone: userProfile?.phone || '',
+      initials,
+      tint: '#a85a32',
+      city: orderData.deliveryAddress?.city || '',
+      number: '#' + orderId.slice(-6),
+      total: orderData.total || 0,
+      freight: orderData.shippingCost || 0,
+      shipping: orderData.shippingMethod || '',
+      payment: orderData.paymentMethod || 'pix',
+      status: 'Pendente',
+      tracking: '',
+      products: (orderData.items || []).map(item => ({
+        n: item.name || '',
+        sku: item.sku || '',
+        p: item.price || 0,
+        q: item.qty || 1,
+        producer: item.producer || '',
+        tint: '#a85a32',
+        initials: (item.name || '').substring(0, 2).toUpperCase(),
+      })),
+      address: {
+        name: customerName,
+        line1: `${orderData.deliveryAddress?.street || ''}, ${orderData.deliveryAddress?.number || ''}`,
+        district: orderData.deliveryAddress?.neighborhood || '',
+        city: orderData.deliveryAddress?.city || '',
+        state: orderData.deliveryAddress?.state || '',
+        cep: orderData.deliveryAddress?.cep || '',
+      },
+      deliveryAddress: orderData.deliveryAddress || {},
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return orderId;
+  } catch (e) {
+    console.warn('[addPedidoAdmin]', e.message);
+    return null;
+  }
+}
+
 // ─── Favoritos ────────────────────────────────────────────────────────────────
 
 export async function getFavorites(uid) {
