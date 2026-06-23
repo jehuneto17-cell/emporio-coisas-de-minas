@@ -194,10 +194,23 @@ export default function CheckoutScreen({ navigation }) {
   const checkoutTotal = Math.max(0, subtotal - discount + shippingCost);
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
+  function cleanUndefined(obj) {
+    if (obj === null || obj === undefined) return null;
+    if (Array.isArray(obj)) return obj.map(cleanUndefined);
+    if (typeof obj === 'object') {
+      return Object.fromEntries(
+        Object.entries(obj)
+          .filter(([, v]) => v !== undefined)
+          .map(([k, v]) => [k, cleanUndefined(v)])
+      );
+    }
+    return obj;
+  }
+
   async function handleConfirm() {
     setConfirming(true);
     try {
-      const orderId = await addOrder(user?.uid, {
+      const orderId = await addOrder(user?.uid, cleanUndefined({
         items,
         subtotal,
         discount,
@@ -208,11 +221,11 @@ export default function CheckoutScreen({ navigation }) {
         shippingCompany: selectedOption?.company?.name || '',
         shippingCost,
         deliveryAddress: deliveryAddress || null,
-      });
+      }));
       // Espelha o pedido na coleção /pedidos para o painel admin
       try {
         const userProfile = await getUserProfile(user.uid);
-        await addPedidoAdmin(user.uid, orderId, {
+        await addPedidoAdmin(user.uid, orderId, cleanUndefined({
           items,
           total: checkoutTotal,
           subtotal,
@@ -222,7 +235,7 @@ export default function CheckoutScreen({ navigation }) {
           shippingCost,
           deliveryAddress,
           paymentMethod: tab,
-        }, userProfile);
+        }), userProfile);
       } catch (e) {
         console.warn('[Checkout] addPedidoAdmin error', e);
       }
