@@ -253,6 +253,7 @@ Regras em `firestore.rules`. Estrutura de coleções esperada:
 ```
 /produtos/{productId}            → catálogo de produtos (serviço: firestore.js)
 /categorias/{categoryId}         → categorias gerenciadas pelo painel admin (getCategories em firestore.js)
+/pedidos/{orderId}               → espelho de pedidos para o painel admin (addPedidoAdmin em firestore.js)
 /users/{uid}                     → perfil do usuário
 /users/{uid}/cart/{itemId}       → itens do carrinho
 /users/{uid}/favorites/{itemId}  → favoritos
@@ -501,6 +502,8 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Filtro de transportadoras preferidas com fallback automático** (2026-06-22) — `CheckoutScreen.calculateShipping` atualizado: array `PREFERRED_SERVICES = ['.Package', 'PAC', 'SEDEX', 'Express']` filtra as opções retornadas pelo Melhor Envio; se nenhuma transportadora preferida cobrir o CEP de destino, exibe todas as disponíveis como fallback (`allValid`); ordenação por preço mantida em ambos os caminhos
 ✅ **ProductDetailScreen — card de entrega com peso real e visual original** (2026-06-22) — card de entrega reescrito para texto inline único: quando `product.weight > 0` exibe `"Produto de Xkg · "` (ou `Xg` se < 1 kg) seguido de `"Frete calculado no checkout"` em negrito; quando sem peso exibe apenas `"Frete calculado no checkout"` em negrito; `View` intermediária e linha de dimensões removidas, mantendo o layout original de uma linha com ícone + texto
 ✅ **Fix: frete e total corretos no CartScreen** (2026-06-22) — `SummaryRow` de frete alterado para texto `"Calculado no checkout"` (sem valor fixo); linha "Entrega em até 3 dias úteis" removida; label "Total" alterado para "Subtotal" e valor trocado de `total` (que incluía R$ 15,90 fixo) para `subtotal - discount`; botão "Finalizar Pedido" também atualizado para `subtotal - discount`
+
+✅ **Espelho de pedidos na coleção `/pedidos` para o painel admin** (2026-06-23) — `addPedidoAdmin(uid, orderId, orderData, userProfile)` adicionado em `firestore.js`: grava em `/pedidos/{orderId}` os campos esperados pelo painel admin (`customer`, `customerEmail`, `customerPhone`, `initials`, `tint`, `city`, `number`, `total`, `freight`, `shipping`, `payment`, `status`, `tracking`, `products[]`, `address`, `deliveryAddress`, `createdAt`, `updatedAt`). `CheckoutScreen` atualizado: importa `addPedidoAdmin` e `getUserProfile`; logo após salvar em `/users/{uid}/orders`, chama `addPedidoAdmin` com os dados do pedido e o perfil do usuário; erros são capturados silenciosamente (não bloqueiam o fluxo do checkout)
 
 ---
 
