@@ -159,7 +159,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Pedidos Recentes</Text>
-            <TouchableOpacity><Text style={styles.seeAll}>Ver todos</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('MyOrders')}><Text style={styles.seeAll}>Ver todos</Text></TouchableOpacity>
           </View>
           {recentOrders.length === 0 ? (
             <Text style={styles.emptyOrders}>Nenhum pedido realizado ainda.</Text>
@@ -172,7 +172,7 @@ export default function ProfileScreen({ navigation }) {
                 <TouchableOpacity
                   key={o.id}
                   style={styles.orderCard}
-                  onPress={() => navigation.navigate('OrderTracking')}
+                  onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
                 >
                   <View style={styles.orderLeft}>
                     <Text style={styles.orderId}>{shortId}</Text>
