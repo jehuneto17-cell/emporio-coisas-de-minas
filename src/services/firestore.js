@@ -171,7 +171,9 @@ export async function getTrackingInfo(trackingCode) {
 
 export async function addPedidoAdmin(uid, orderId, orderData, userProfile) {
   try {
-    const customerName = userProfile?.name || 'Cliente';
+    // Nome real do cliente. Fallback final 'Cliente' só quando não há nada utilizável.
+    const customerName =
+      userProfile?.name || userProfile?.email || 'Cliente';
     const initials = customerName.substring(0, 2).toUpperCase();
     await setDoc(doc(db, 'pedidos', orderId), {
       uid,
@@ -188,6 +190,10 @@ export async function addPedidoAdmin(uid, orderId, orderData, userProfile) {
       payment: orderData.paymentMethod || 'pix',
       status: 'Pendente',
       tracking: '',
+      // Array original do carrinho — necessário para o app sincronizar o
+      // status do pedido via uid (o painel admin grava de volta em
+      // /users/{uid}/orders/{orderId}).
+      items: orderData.items || [],
       products: (orderData.items || []).map(item => ({
         n: item.name || '',
         sku: item.sku || '',

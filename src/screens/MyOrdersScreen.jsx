@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, TouchableOpacity,
@@ -17,31 +17,45 @@ const FILTERS = [
   { key: 'entregue',   label: 'Entregue' },
 ];
 
+// Normaliza status para comparação resiliente: minúsculas + sem acento.
+// O painel admin grava 'Pendente' / 'Preparando' / 'Em trânsito' / 'Entregue'
+// (maiúsculo e acentuado); o app grava 'pendente' / 'em transito' / 'entregue'.
+// Sem remover o acento, 'trânsito'.includes('transit') retorna false.
+function normalizeStatus(status) {
+  return (status || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function isEntregue(s) { return s === 'entregue'; }
+function isTransito(s) { return s.includes('transit') || s.includes('transporte'); }
+
 function getStatusColor(status) {
-  if (!status) return C.ochre;
-  const s = status.toLowerCase();
-  if (s === 'entregue') return C.greenFg;
-  if (s.includes('transit') || s.includes('transporte')) return C.terra;
+  const s = normalizeStatus(status);
+  if (isEntregue(s)) return C.greenFg;
+  if (isTransito(s)) return C.terra;
   return C.ochre;
 }
 
 function getStatusLabel(status) {
-  if (!status) return 'Pendente';
-  switch (status.toLowerCase()) {
-    case 'entregue': return 'Entregue';
-    case 'em_transito':
-    case 'em transito': return 'Em Transporte';
-    case 'pendente': return 'Pendente';
-    default: return status;
-  }
+  const s = normalizeStatus(status);
+  if (!s) return 'Pendente';
+  if (isEntregue(s)) return 'Entregue';
+  if (isTransito(s)) return 'Em Transporte';
+  if (s === 'preparando') return 'Preparando';
+  if (s === 'pendente') return 'Pendente';
+  return status; // estado desconhecido — exibe o texto original
 }
 
 function matchesFilter(order, key) {
   if (key === 'todos') return true;
-  const s = (order.status || 'pendente').toLowerCase();
-  if (key === 'entregue') return s === 'entregue';
-  if (key === 'transito') return s.includes('transit') || s.includes('transporte');
-  if (key === 'pendente') return s === 'pendente' || s === '' || !order.status;
+  const s = normalizeStatus(order.status) || 'pendente';
+  if (key === 'entregue') return isEntregue(s);
+  if (key === 'transito') return isTransito(s);
+  // 'Pendente' agrupa tudo que ainda não saiu para entrega (inclui 'preparando')
+  if (key === 'pendente') return !isEntregue(s) && !isTransito(s);
   return true;
 }
 
@@ -155,7 +169,7 @@ export default function MyOrdersScreen({ navigation }) {
             <Text style={styles.trackText}>Rastrear pedido</Text>
             <Ionicons name="chevron-forward" size={13} color={C.terra} />
           </TouchableOpacity>
-          {(o.status || '').toLowerCase() === 'entregue' && Array.isArray(o.items) && o.items.length > 0 && (
+          {normalizeStatus(o.status) === 'entregue' && Array.isArray(o.items) && o.items.length > 0 && (
             <TouchableOpacity
               style={styles.reviewBtn}
               onPress={() => {

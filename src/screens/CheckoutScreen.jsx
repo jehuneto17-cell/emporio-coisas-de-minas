@@ -209,6 +209,9 @@ export default function CheckoutScreen({ navigation }) {
 
   async function handleConfirm() {
     setConfirming(true);
+    console.log('[handleConfirm] user.uid:', user?.uid);
+    console.log('[handleConfirm] items:', JSON.stringify(items));
+    console.log('[handleConfirm] deliveryAddress:', JSON.stringify(deliveryAddress));
     try {
       const orderId = await addOrder(user?.uid, cleanUndefined({
         items,
@@ -222,22 +225,35 @@ export default function CheckoutScreen({ navigation }) {
         shippingCost,
         deliveryAddress: deliveryAddress || null,
       }));
-      // Espelha o pedido na coleção /pedidos para o painel admin
-      try {
-        const userProfile = await getUserProfile(user.uid);
-        await addPedidoAdmin(user.uid, orderId, cleanUndefined({
-          items,
-          total: checkoutTotal,
-          subtotal,
-          discount,
-          shippingMethod: selectedOption?.name || '',
-          shippingCompany: selectedOption?.company?.name || '',
-          shippingCost,
-          deliveryAddress,
-          paymentMethod: tab,
-        }), userProfile);
-      } catch (e) {
-        console.warn('[Checkout] addPedidoAdmin error', e);
+      // Espelha o pedido na coleção /pedidos para o painel admin.
+      // Só roda para usuário logado com orderId válido.
+      if (user?.uid && orderId) {
+        try {
+          const userProfile = await getUserProfile(user.uid);
+          console.log('[handleConfirm] userProfile:', JSON.stringify(userProfile));
+          // Garante o nome real do cliente: perfil → displayName → email → 'Cliente'.
+          // Evita que o pedido apareça como "Cliente" no painel admin (ex.: login Google
+          // não grava `name` em /users/{uid}).
+          const profileForPedido = {
+            ...(userProfile || {}),
+            name: userProfile?.name || user.displayName || user.email || 'Cliente',
+            email: userProfile?.email || user.email || '',
+            phone: userProfile?.phone || '',
+          };
+          await addPedidoAdmin(user.uid, orderId, cleanUndefined({
+            items,
+            total: checkoutTotal,
+            subtotal,
+            discount,
+            shippingMethod: selectedOption?.name || '',
+            shippingCompany: selectedOption?.company?.name || '',
+            shippingCost,
+            deliveryAddress,
+            paymentMethod: tab,
+          }), profileForPedido);
+        } catch (e) {
+          console.warn('[Checkout] addPedidoAdmin error', e);
+        }
       }
       clearCart();
       navigation.navigate('OrderConfirmation', { orderId });
