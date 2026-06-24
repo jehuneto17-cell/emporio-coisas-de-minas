@@ -91,6 +91,27 @@ export async function createUserProfile(uid, { name, email, phone }) {
   });
 }
 
+export async function upsertClienteAdmin(uid, data) {
+  try {
+    await setDoc(doc(db, 'clientes', uid), {
+      name: data.name || '',
+      email: data.email || '',
+      phone: data.phone || '',
+      city: data.city || '',
+      status: 'ativo',
+      tier: 'Novo',
+      orders: 0,
+      spent: 0,
+      since: new Date().toLocaleDateString('pt-BR'),
+      last: '—',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[upsertClienteAdmin]', e.message);
+  }
+}
+
 export async function getUserProfile(uid) {
   const snap = await getDoc(doc(db, 'users', uid));
   if (!snap.exists()) return null;
