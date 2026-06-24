@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   loginBtnText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 
-  list: { paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
+  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4, gap: 12 },
 
   orderCard: {
     backgroundColor: C.card,
