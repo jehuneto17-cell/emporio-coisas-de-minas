@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, FlatList, ActivityIndicator,
+  ScrollView, FlatList, ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -87,11 +87,13 @@ export default function MyOrdersScreen({ navigation }) {
     const totalStr = typeof o.total === 'number' ? fmt(o.total) : (o.total || '—');
     const itemCount = Array.isArray(o.items) ? o.items.length : 0;
     const payLabel = PAY_LABELS[o.paymentMethod] ?? 'PIX';
+    const productImages = Array.isArray(o.items)
+      ? o.items.slice(0, 3).map(item => (item.images && item.images[0]) || item.imageUrl || null).filter(Boolean)
+      : [];
 
     return (
       <TouchableOpacity
         style={styles.orderCard}
-        onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
         activeOpacity={0.8}
       >
         {/* Top row */}
@@ -110,6 +112,20 @@ export default function MyOrdersScreen({ navigation }) {
 
         <View style={styles.divider} />
 
+        {/* Miniaturas dos produtos */}
+        {productImages.length > 0 && (
+          <View style={styles.productImagesRow}>
+            {productImages.map((img, i) => (
+              <Image key={i} source={{ uri: img }} style={styles.productThumb} resizeMode="cover" />
+            ))}
+            {itemCount > 3 && (
+              <View style={styles.productThumbMore}>
+                <Text style={styles.productThumbMoreText}>+{itemCount - 3}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Bottom row */}
         <View style={styles.cardBottom}>
           <View style={styles.metaItem}>
@@ -125,11 +141,28 @@ export default function MyOrdersScreen({ navigation }) {
           <Text style={styles.orderTotal}>{totalStr}</Text>
         </View>
 
-        {/* Track link */}
+        {/* Track link + Avaliar */}
         <View style={styles.trackRow}>
-          <Ionicons name="location-outline" size={13} color={C.terra} />
-          <Text style={styles.trackText}>Rastrear pedido</Text>
-          <Ionicons name="chevron-forward" size={13} color={C.terra} />
+          <TouchableOpacity
+            style={styles.trackBtn}
+            onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
+          >
+            <Ionicons name="location-outline" size={13} color={C.terra} />
+            <Text style={styles.trackText}>Rastrear pedido</Text>
+            <Ionicons name="chevron-forward" size={13} color={C.terra} />
+          </TouchableOpacity>
+          {(o.status || '').toLowerCase() === 'entregue' && Array.isArray(o.items) && o.items.length > 0 && (
+            <TouchableOpacity
+              style={styles.reviewBtn}
+              onPress={() => {
+                const firstItem = o.items[0];
+                navigation.navigate('ProductDetail', { product: firstItem });
+              }}
+            >
+              <Ionicons name="star-outline" size={13} color="#fff" />
+              <Text style={styles.reviewBtnText}>Avaliar</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -302,10 +335,13 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_700Bold',
   },
 
-  trackRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    marginTop: 10, paddingTop: 10,
-    borderTopWidth: 1, borderTopColor: C.border,
-  },
+  productImagesRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  productThumb: { width: 52, height: 52, borderRadius: 8, backgroundColor: C.chip },
+  productThumbMore: { width: 52, height: 52, borderRadius: 8, backgroundColor: C.chip, alignItems: 'center', justifyContent: 'center' },
+  productThumbMoreText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_600SemiBold' },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border },
+  trackBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
   trackText: { fontSize: 12, color: C.terra, fontFamily: 'WorkSans_600SemiBold', flex: 1 },
+  reviewBtn: { backgroundColor: C.terra, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  reviewBtnText: { fontSize: 12, color: '#fff', fontFamily: 'WorkSans_600SemiBold' },
 });
