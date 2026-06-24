@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, Platform,
+  ActivityIndicator, Platform, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -108,6 +108,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
   const createdAt = order?.createdAt || pedidoAdmin?.createdAt;
   const timeline = buildTimeline(status, createdAt, tracking);
   const shortId = '#' + String(orderId || '').slice(-6);
+  const items = order?.items || [];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -154,6 +155,32 @@ export default function OrderTrackingScreen({ navigation, route }) {
             <Text style={styles.noTracking}>Código ainda não disponível</Text>
           )}
         </View>
+
+        {/* Produtos do pedido */}
+        {items.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Produtos</Text>
+            {items.map((item, i) => {
+              const img = (item.images && item.images[0]) || item.imageUrl || null;
+              return (
+                <View key={i} style={[styles.productRow, i < items.length - 1 && styles.productRowBorder]}>
+                  {img ? (
+                    <Image source={{ uri: img }} style={styles.productImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.productImg, { backgroundColor: C.chip, alignItems: 'center', justifyContent: 'center' }]}>
+                      <Ionicons name="cube-outline" size={20} color={C.muted} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.productName} numberOfLines={2}>{item.name || 'Produto'}</Text>
+                    {item.producer ? <Text style={styles.productProducer}>{item.producer}</Text> : null}
+                  </View>
+                  <Text style={styles.productQty}>{item.qty || 1}×</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         {/* Timeline */}
         <View style={styles.card}>
@@ -239,4 +266,10 @@ const styles = StyleSheet.create({
   addrName: { fontSize: 14, color: C.ink, fontFamily: 'PlusJakartaSans_600SemiBold' },
   addrLine: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', marginTop: 3 },
   addrCity: { fontSize: 13, color: C.subtle, fontFamily: 'WorkSans_400Regular', marginTop: 2 },
+  productRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  productRowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
+  productImg: { width: 56, height: 56, borderRadius: 10 },
+  productName: { fontSize: 13, color: C.brown, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 17 },
+  productProducer: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular', marginTop: 2 },
+  productQty: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_600SemiBold' },
 });
