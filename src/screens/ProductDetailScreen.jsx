@@ -31,6 +31,8 @@ export default function ProductDetailScreen({ navigation, route }) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [localRating, setLocalRating] = useState(product.rating || 0);
+  const [localReviewCount, setLocalReviewCount] = useState(product.reviewCount || 0);
 
   useEffect(() => {
     if (!product.category) return;
@@ -92,7 +94,14 @@ export default function ProductDetailScreen({ navigation, route }) {
     if (success) {
       setUserReview({ rating: reviewRating, comment: reviewComment });
       setShowReviewForm(false);
-      getReviews(product.id).then(setReviews).catch(() => {});
+      getReviews(product.id).then(data => {
+        setReviews(data);
+        if (data.length > 0) {
+          const avg = data.reduce((s, r) => s + r.rating, 0) / data.length;
+          setLocalRating(Math.round(avg * 10) / 10);
+          setLocalReviewCount(data.length);
+        }
+      }).catch(() => {});
       if (Platform.OS === 'web') {
         window.alert('Avaliação enviada com sucesso!');
       } else {
@@ -141,9 +150,9 @@ export default function ProductDetailScreen({ navigation, route }) {
             </View>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={C.ochre} />
-              <Text style={styles.ratingScore}>{product.rating?.toFixed(1) ?? '—'}</Text>
+              <Text style={styles.ratingScore}>{localRating > 0 ? localRating.toFixed(1) : '—'}</Text>
               <Text style={styles.ratingCount}>
-                {product.reviewCount ? `(${product.reviewCount} avaliações)` : ''}
+                {localReviewCount > 0 ? `(${localReviewCount} avaliações)` : ''}
               </Text>
             </View>
           </View>
