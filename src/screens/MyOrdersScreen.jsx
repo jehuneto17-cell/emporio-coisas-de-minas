@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, FlatList, ActivityIndicator, Image,
@@ -62,19 +63,22 @@ export default function MyOrdersScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('todos');
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setLoading(false);
-      return;
-    }
-    getUserOrders(user.uid)
-      .then((data) => {
-        const sorted = [...data].sort((a, b) => (b.id > a.id ? 1 : -1));
-        setOrders(sorted);
-      })
-      .catch((e) => console.warn('[MyOrders] load error', e))
-      .finally(() => setLoading(false));
-  }, [user]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.uid) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      getUserOrders(user.uid)
+        .then((data) => {
+          const sorted = [...data].sort((a, b) => (b.id > a.id ? 1 : -1));
+          setOrders(sorted);
+        })
+        .catch((e) => console.warn('[MyOrders] load error', e))
+        .finally(() => setLoading(false));
+    }, [user?.uid])
+  );
 
   const filtered = useMemo(
     () => orders.filter((o) => matchesFilter(o, activeFilter)),
@@ -266,7 +270,8 @@ const styles = StyleSheet.create({
 
   chipsRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 32,
     paddingTop: 4,
     paddingBottom: 14,
     gap: 8,
