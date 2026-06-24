@@ -361,3 +361,69 @@ export async function searchProducts(term) {
       p.categoryLabel?.toLowerCase().includes(lower)
   );
 }
+
+// ─── Avaliações ───────────────────────────────────────────────────────────────
+
+export async function getReviews(productId) {
+  try {
+    const snap = await getDocs(collection(db, 'produtos', productId, 'reviews'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('[getReviews]', e.message);
+    return [];
+  }
+}
+
+export async function getUserReview(productId, uid) {
+  try {
+    const snap = await getDoc(doc(db, 'produtos', productId, 'reviews', uid));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() };
+  } catch (e) {
+    console.warn('[getUserReview]', e.message);
+    return null;
+  }
+}
+
+export async function hasUserBoughtProduct(uid, productId) {
+  try {
+    const snap = await getDocs(collection(db, 'users', uid, 'orders'));
+    const orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return orders.some(order =>
+      Array.isArray(order.items) &&
+      order.items.some(item => String(item.id) === String(productId))
+    );
+  } catch (e) {
+    console.warn('[hasUserBoughtProduct]', e.message);
+    return false;
+  }
+}
+
+export async function submitReview(productId, uid, userName, rating, comment) {
+  try {
+    await setDoc(doc(db, 'produtos', productId, 'reviews', uid), {
+      uid,
+      userName,
+      rating,
+      comment: comment.trim(),
+      createdAt: serverTimestamp(),
+    });
+
+    const snap = await getDocs(collection(db, 'produtos', productId, 'reviews'));
+    const reviews = snap.docs.map(d => d.data());
+    const count = reviews.length;
+    const avg = count > 0
+      ? reviews.reduce((s, r) => s + (r.rating || 0), 0) / count
+      : 0;
+
+    await setDoc(doc(db, 'produtos', productId), {
+      rating: Math.round(avg * 10) / 10,
+      reviewCount: count,
+    }, { merge: true });
+
+    return true;
+  } catch (e) {
+    console.warn('[submitReview]', e.message);
+    return false;
+  }
+}

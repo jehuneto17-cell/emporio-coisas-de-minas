@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, TextInput, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
-import { getAllCategories, getSimilarProducts } from '../services/firestore';
+import { getAllCategories, getSimilarProducts, getReviews, getUserReview, hasUserBoughtProduct, submitReview } from '../services/firestore';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 
 const DEFAULT_WEIGHTS = ['200g', '400g', '600g', '1kg'];
 
@@ -14,6 +15,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const product = route.params?.product ?? {};
   const { addItem } = useCart();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { user } = useAuth();
 
   const weights = product.weights ?? DEFAULT_WEIGHTS;
   const [slide, setSlide] = useState(1);
@@ -22,6 +24,13 @@ export default function ProductDetailScreen({ navigation, route }) {
   const [catName, setCatName] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [similares, setSimilares] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [userReview, setUserReview] = useState(null);
+  const [canReview, setCanReview] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!product.category) return;
@@ -34,6 +43,24 @@ export default function ProductDetailScreen({ navigation, route }) {
     getSimilarProducts(product.category, product.id)
       .then(setSimilares)
       .catch(() => {});
+
+    // Carrega avaliações
+    getReviews(product.id).then(setReviews).catch(() => {});
+
+    // Verifica se usuário pode avaliar
+    if (user?.uid) {
+      Promise.all([
+        hasUserBoughtProduct(user.uid, product.id),
+        getUserReview(product.id, user.uid),
+      ]).then(([bought, review]) => {
+        setCanReview(bought);
+        setUserReview(review);
+        if (review) {
+          setReviewRating(review.rating);
+          setReviewComment(review.comment || '');
+        }
+      }).catch(() => {});
+    }
   }, [product.id]);
 
   const liked = isFavorite(product.id);
@@ -47,6 +74,31 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   function handleToggleFavorite() {
     toggleFavorite(product);
+  }
+
+  async function handleSubmitReview() {
+    if (!reviewComment.trim()) {
+      if (Platform.OS === 'web') {
+        window.alert('Por favor escreva um comentário.');
+      } else {
+        Alert.alert('Atenção', 'Por favor escreva um comentário.');
+      }
+      return;
+    }
+    setSubmittingReview(true);
+    const userName = user?.displayName || 'Cliente';
+    const success = await submitReview(product.id, user.uid, userName, reviewRating, reviewComment);
+    setSubmittingReview(false);
+    if (success) {
+      setUserReview({ rating: reviewRating, comment: reviewComment });
+      setShowReviewForm(false);
+      getReviews(product.id).then(setReviews).catch(() => {});
+      if (Platform.OS === 'web') {
+        window.alert('Avaliação enviada com sucesso!');
+      } else {
+        Alert.alert('Obrigado!', 'Sua avaliação foi enviada.');
+      }
+    }
   }
 
   return (
@@ -162,6 +214,110 @@ export default function ProductDetailScreen({ navigation, route }) {
             </Text>
           </View>
 
+          <View style={[styles.divider, { marginTop: 20 }]} />
+          <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>Avaliações</Text>
+
+          {/* Resumo de avaliações */}
+          {reviews.length > 0 && (
+            <View style={styles.reviewSummary}>
+              <Text style={styles.reviewAvgNum}>
+                {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
+              </Text>
+              <View>
+                <View style={{ flexDirection: 'row', gap: 3, marginBottom: 4 }}>
+                  {[1,2,3,4,5].map(i => (
+                    <Ionicons key={i}
+                      name={i <= Math.round(reviews.reduce((s,r) => s+r.rating,0)/reviews.length) ? 'star' : 'star-outline'}
+                      size={14} color={C.ochre} />
+                  ))}
+                </View>
+                <Text style={styles.reviewCountText}>{reviews.length} avaliação(ões)</Text>
+              </View>
+            </View>
+          )}
+
+          {/* Lista de avaliações */}
+          {reviews.slice(0, 3).map((r, i) => (
+            <View key={i} style={styles.reviewCard}>
+              <View style={styles.reviewHeader}>
+                <View style={styles.reviewAvatar}>
+                  <Text style={styles.reviewAvatarText}>
+                    {(r.userName || 'C')[0].toUpperCase()}
+                  </Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.reviewName}>{r.userName || 'Cliente'}</Text>
+                  <View style={{ flexDirection: 'row', gap: 2 }}>
+                    {[1,2,3,4,5].map(i => (
+                      <Ionicons key={i} name={i <= r.rating ? 'star' : 'star-outline'} size={11} color={C.ochre} />
+                    ))}
+                  </View>
+                </View>
+              </View>
+              {r.comment ? <Text style={styles.reviewComment}>{r.comment}</Text> : null}
+            </View>
+          ))}
+
+          {/* Botão ou formulário de avaliação */}
+          {canReview && !userReview && !showReviewForm && (
+            <TouchableOpacity style={styles.reviewBtn} onPress={() => setShowReviewForm(true)}>
+              <Ionicons name="star-outline" size={16} color={C.terra} />
+              <Text style={styles.reviewBtnText}>Avaliar este produto</Text>
+            </TouchableOpacity>
+          )}
+
+          {canReview && userReview && (
+            <View style={styles.reviewedBadge}>
+              <Ionicons name="checkmark-circle" size={16} color="#3a7a3a" />
+              <Text style={styles.reviewedText}>Você já avaliou este produto</Text>
+            </View>
+          )}
+
+          {!canReview && user && (
+            <Text style={styles.cantReviewText}>
+              Apenas quem comprou este produto pode avaliar.
+            </Text>
+          )}
+
+          {showReviewForm && (
+            <View style={styles.reviewForm}>
+              <Text style={styles.sectionLabel}>Sua avaliação</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {[1,2,3,4,5].map(i => (
+                  <TouchableOpacity key={i} onPress={() => setReviewRating(i)}>
+                    <Ionicons name={i <= reviewRating ? 'star' : 'star-outline'} size={32} color={C.ochre} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TextInput
+                value={reviewComment}
+                onChangeText={setReviewComment}
+                placeholder="Conte sua experiência com o produto..."
+                placeholderTextColor={C.subtle}
+                multiline
+                numberOfLines={4}
+                style={styles.reviewInput}
+              />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                <TouchableOpacity
+                  style={[styles.reviewSubmitBtn, { backgroundColor: '#f0ede9', flex: 1 }]}
+                  onPress={() => setShowReviewForm(false)}
+                >
+                  <Text style={[styles.reviewSubmitText, { color: C.muted }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.reviewSubmitBtn, { flex: 2 }]}
+                  onPress={handleSubmitReview}
+                  disabled={submittingReview}
+                >
+                  <Text style={styles.reviewSubmitText}>
+                    {submittingReview ? 'Enviando...' : 'Enviar avaliação'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
           {similares.length > 0 && (
             <>
               <View style={[styles.divider, { marginTop: 20 }]} />
@@ -268,4 +424,22 @@ const styles = StyleSheet.create({
   similarImg:   { width: '100%', aspectRatio: 1 },
   similarName:  { fontSize: 13, color: C.brown, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 17, marginBottom: 4 },
   similarPrice: { fontSize: 14, color: C.terra, fontFamily: 'PlusJakartaSans_700Bold' },
+  reviewSummary: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: '#f6f3ef', borderRadius: 12, padding: 14, marginBottom: 12 },
+  reviewAvgNum: { fontSize: 36, color: C.brown, fontFamily: 'PlusJakartaSans_800ExtraBold' },
+  reviewCountText: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' },
+  reviewCard: { backgroundColor: '#f6f3ef', borderRadius: 12, padding: 14, marginBottom: 10 },
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  reviewAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' },
+  reviewAvatarText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
+  reviewName: { fontSize: 13, color: C.brown, fontFamily: 'WorkSans_600SemiBold', marginBottom: 2 },
+  reviewComment: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', lineHeight: 19 },
+  reviewBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: C.terra, borderRadius: 10, padding: 12, marginTop: 8 },
+  reviewBtnText: { fontSize: 14, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
+  reviewedBadge: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#e7f1e6', borderRadius: 10, padding: 12, marginTop: 8 },
+  reviewedText: { fontSize: 13, color: '#3a7a3a', fontFamily: 'WorkSans_600SemiBold' },
+  cantReviewText: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+  reviewForm: { backgroundColor: '#f6f3ef', borderRadius: 12, padding: 16, marginTop: 8 },
+  reviewInput: { backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: C.border, padding: 12, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular', minHeight: 100, textAlignVertical: 'top', outlineStyle: 'none' },
+  reviewSubmitBtn: { backgroundColor: C.terra, borderRadius: 10, padding: 13, alignItems: 'center', justifyContent: 'center' },
+  reviewSubmitText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
 });
