@@ -103,7 +103,7 @@ export default function ProfileScreen({ navigation }) {
     : null;
   const recentOrders = [...orders]
     .sort((a, b) => (b.id > a.id ? 1 : -1))
-    .slice(0, 3);
+    .slice(0, 1);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
