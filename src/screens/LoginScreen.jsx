@@ -198,6 +198,7 @@ function Field({ label, icon, placeholder, value, onChangeText, secureTextEntry,
           onFocus={onFocus}
           onBlur={onBlur}
           autoCapitalize="none"
+          outlineStyle="none"
         />
         {right}
       </View>
