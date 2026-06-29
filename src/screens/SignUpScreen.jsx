@@ -146,6 +146,7 @@ function Field({ label, icon, placeholder, value, onChangeText, secureTextEntry,
           style={styles.input} placeholder={placeholder} placeholderTextColor={C.subtle}
           value={value} onChangeText={onChangeText} secureTextEntry={secureTextEntry}
           keyboardType={keyboardType} onFocus={onFocus} onBlur={onBlur} autoCapitalize="none"
+          outlineStyle="none"
         />
         {right}
       </View>
