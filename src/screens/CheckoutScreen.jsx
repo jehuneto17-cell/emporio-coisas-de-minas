@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Modal, ActivityIndicator, Platform,
+  Modal, ActivityIndicator, Platform, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +18,7 @@ const FRETE_API_URL = typeof window !== 'undefined' && window.location.hostname 
 
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
-  const { items, totalItems, subtotal, discount, couponApplied, clearCart } = useCart();
+  const { items, totalItems, subtotal, discount, coupon, couponApplied, clearCart } = useCart();
 
   const [tab, setTab] = useState('pix');
   const [seconds, setSeconds] = useState(15 * 60);
@@ -208,6 +208,22 @@ export default function CheckoutScreen({ navigation }) {
   }
 
   async function handleConfirm() {
+    if (!user?.uid) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (!deliveryAddress) {
+      Platform.OS === 'web'
+        ? window.alert('Adicione um endereço de entrega antes de continuar.')
+        : Alert.alert('Endereço necessário', 'Adicione um endereço de entrega antes de continuar.');
+      return;
+    }
+    if (!method && !shippingError) {
+      Platform.OS === 'web'
+        ? window.alert('Aguarde o cálculo do frete ou tente novamente.')
+        : Alert.alert('Frete necessário', 'Aguarde o cálculo do frete ou tente novamente.');
+      return;
+    }
     setConfirming(true);
     console.log('[handleConfirm] user.uid:', user?.uid);
     console.log('[handleConfirm] items:', JSON.stringify(items));
@@ -217,6 +233,7 @@ export default function CheckoutScreen({ navigation }) {
         items,
         subtotal,
         discount,
+        coupon: couponApplied ? coupon : '',
         shipping: shippingCost,
         total: checkoutTotal,
         paymentMethod: tab,
@@ -245,6 +262,7 @@ export default function CheckoutScreen({ navigation }) {
             total: checkoutTotal,
             subtotal,
             discount,
+            coupon: couponApplied ? coupon : '',
             shippingMethod: selectedOption?.name || '',
             shippingCompany: selectedOption?.company?.name || '',
             shippingCost,
