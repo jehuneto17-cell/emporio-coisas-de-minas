@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Google from 'expo-auth-session/providers/google';
 import { C } from '../theme';
 import { useAuth } from '../context/AuthContext';
-import { getAuthErrorMessage } from '../services/auth';
+import { getAuthErrorMessage, signInWithGoogleCredential } from '../services/auth';
 import { createUserProfile } from '../services/firestore';
 
 export default function SignUpScreen({ navigation }) {
@@ -22,14 +23,43 @@ export default function SignUpScreen({ navigation }) {
   const [focus, setFocus] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: '623158539642-d02mnp4ldgfono95kfe2g0nlfucpiglr.apps.googleusercontent.com',
+    responseType: 'id_token',
+    usePKCE: false,
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params?.id_token ?? response.authentication?.idToken;
+      if (!idToken) {
+        setError('Não foi possível obter o token do Google. Tente novamente.');
+        return;
+      }
+      setLoadingGoogle(true);
+      signInWithGoogleCredential(idToken)
+        .then(() => navigation.replace('Main'))
+        .catch((e) => setError(getAuthErrorMessage(e.code)))
+        .finally(() => setLoadingGoogle(false));
+    } else if (response?.type === 'error') {
+      setError('Erro ao autenticar com Google. Tente novamente.');
+    }
+  }, [response]);
+
+  async function handleGoogleSignIn() {
+    setError('');
+    await promptAsync();
+  }
 
   async function handleSignUp() {
     if (!name.trim() || !email.trim() || !pwd) {
       setError('Preencha nome, e-mail e senha.');
       return;
     }
-    if (pwd.length < 6) {
-      setError('A senha deve ter pelo menos 6 caracteres.');
+    if (pwd.length < 8) {
+      setError('A senha deve ter pelo menos 8 caracteres.');
       return;
     }
     if (pwd !== pwd2) {
@@ -119,8 +149,12 @@ export default function SignUpScreen({ navigation }) {
           </View>
 
           <View style={styles.socialRow}>
-            <SocialBtn label="Google" icon="logo-google" />
-            <SocialBtn label="Facebook" icon="logo-facebook" />
+            <SocialBtn label="Google" icon="logo-google" onPress={handleGoogleSignIn} loading={loadingGoogle} />
+            <SocialBtn
+              label="Facebook"
+              icon="logo-facebook"
+              onPress={() => setError('Login com Facebook não disponível ainda. Use e-mail ou Google.')}
+            />
           </View>
         </View>
 
@@ -154,10 +188,17 @@ function Field({ label, icon, placeholder, value, onChangeText, secureTextEntry,
   );
 }
 
-function SocialBtn({ label, icon }) {
+function SocialBtn({ label, icon, onPress, loading }) {
   return (
-    <TouchableOpacity style={styles.socialBtn}>
-      <Ionicons name={icon} size={16} color={C.ink} />
+    <TouchableOpacity
+      style={[styles.socialBtn, loading && { opacity: 0.6 }]}
+      onPress={onPress}
+      disabled={loading}
+    >
+      {loading
+        ? <ActivityIndicator size="small" color={C.ink} />
+        : <Ionicons name={icon} size={16} color={C.ink} />
+      }
       <Text style={styles.socialLabel}>{label}</Text>
     </TouchableOpacity>
   );
