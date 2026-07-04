@@ -5,7 +5,7 @@ import {
   signOut as authSignOut,
   onAuthStateChanged,
 } from '../services/auth';
-import { getUserProfile, upsertClienteAdmin } from '../services/firestore';
+import { getUserProfile, upsertClienteAdmin, createUserProfile } from '../services/firestore';
 
 const AuthContext = createContext(null);
 
@@ -22,7 +22,27 @@ export function AuthProvider({ children }) {
       setUser(firebaseUser);
       setLoading(false);
       if (firebaseUser) {
-        const profile = await getUserProfile(firebaseUser.uid).catch(() => null);
+        let profile = await getUserProfile(firebaseUser.uid).catch(() => null);
+
+        // Se não tem perfil em /users/{uid}, cria automaticamente.
+        // Isso cobre Google Login e qualquer outro provedor externo.
+        if (!profile) {
+          try {
+            await createUserProfile(firebaseUser.uid, {
+              name: firebaseUser.displayName || '',
+              email: firebaseUser.email || '',
+              phone: '',
+            });
+            profile = {
+              name: firebaseUser.displayName || '',
+              email: firebaseUser.email || '',
+              phone: '',
+            };
+          } catch (e) {
+            console.warn('[Auth] createUserProfile error', e);
+          }
+        }
+
         // Espelha dados do usuário na coleção /clientes para o painel admin
         try {
           await upsertClienteAdmin(firebaseUser.uid, {
