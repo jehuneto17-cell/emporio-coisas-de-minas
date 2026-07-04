@@ -10,6 +10,12 @@
       /* ── Reset Expo/RN-Web ── */
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+      /* ── Remove outline azul/preto do browser em inputs focados ── */
+      input:focus, textarea:focus, select:focus {
+        outline: none !important;
+        box-shadow: none !important;
+      }
+
       /* ── MODO DESKTOP: app simulado como celular centralizado ── */
       html, body {
         width: 100%;
