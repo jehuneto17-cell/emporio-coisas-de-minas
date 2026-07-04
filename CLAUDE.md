@@ -208,7 +208,7 @@ const {
 
 | Regra de negócio | Valor |
 |---|---|
-| Cupom válido | `CANASTRA10` → R$ 11,00 de desconto |
+| Cupom válido | Buscado da coleção `/cupons` no Firestore via `getCupons()`; valida `status === 'ativo'` e pedido mínimo (`minOrder`/`minimo`); desconto usa `discountValue`/`valor`/`discount` do documento |
 | Frete fixo | R$ 15,90 (quando há itens) |
 | `addItem(item)` | Faz dedupe por `id`; se o item já existe, soma a quantidade |
 | `updateQuantity(id, 0)` | Remove o item |
@@ -515,6 +515,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: desconto/cupom espelhado para o painel admin** (2026-06-29) — `addPedidoAdmin` em `firestore.js` agora grava `coupon` (código) e `discountValue` (valor) em `/pedidos` — nomes de campo exatos que o `order-detail-app.jsx` lê em `normalizeOrder` (`raw.coupon` / `raw.discountValue`); também grava `subtotal`. Antes o desconto era passado mas ignorado, fazendo o detalhe do admin exibir sempre "Desconto (—) − R$ 0,00" e o Total não reconciliar com subtotal+frete quando havia cupom. `CheckoutScreen` passa `coupon: couponApplied ? coupon : ''` tanto em `addOrder` (`/users/{uid}/orders`) quanto em `addPedidoAdmin` (`/pedidos`); `coupon` adicionado à desestruturação de `useCart()`
 ✅ **Fix: OrderConfirmationScreen com endereço real e navegação corrigida** (2026-06-29) — (1) bloco de endereço de entrega trocado do mock hardcoded ("João Silva / Rua das Flores, 123 / Itaú de Minas") para `order.deliveryAddress` real (label, rua, número, complemento, cidade, estado, CEP); fallback neutro "Endereço informado no checkout" para visitante/sem pedido; (2) botão "Rastrear" agora passa `{ orderId }` para `OrderTracking` (antes navegava sem params e a tela abria vazia); (3) botão "Ver Meus Pedidos" navega para `MyOrders` (antes ia para `Main`/Home)
 ✅ **Fix: validações no checkout — bloqueia confirmação sem endereço, sem frete e sem login** (2026-06-29) — `CheckoutScreen.jsx`: adicionadas 3 validações no início de `handleConfirm` (antes de `setConfirming(true)`): (1) visitante sem `user?.uid` → reabre o modal de auth em vez de tentar salvar pedido sem uid; (2) sem `deliveryAddress` → `Alert`/`window.alert` "Adicione um endereço de entrega antes de continuar" e retorna; (3) sem `method` e sem `shippingError` (frete ainda calculando) → alerta "Aguarde o cálculo do frete ou tente novamente" e retorna. `Alert` adicionado ao import do React Native.
+✅ **Sistema de cupons reescrito — busca do Firestore** (2026-07-04) — `CartContext.jsx` + `CartScreen.jsx`: `COUPON_CODE`/`COUPON_DISCOUNT` hardcoded removidos; `getCupons()` adicionada em `firestore.js` (lê coleção `/cupons`); `applyCoupon` tornou-se `async` — busca cupons do Firestore, valida `status === 'ativo'` e pedido mínimo (`minOrder`/`minimo`), extrai desconto de `discountValue`/`valor`/`discount`; estados `couponError` e `couponData` adicionados ao contexto; `discount` calculado a partir do valor real do cupom encontrado; `CartScreen` exibe mensagem de erro (vermelho) ou sucesso (verde) inline abaixo do campo de cupom; botão mostra `'...'` durante a busca e `'Aplicado ✓'` quando bem-sucedido
 
 ---
 
