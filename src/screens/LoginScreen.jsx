@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Google from 'expo-auth-session/providers/google';
 import { C } from '../theme';
 import { useAuth } from '../context/AuthContext';
-import { getAuthErrorMessage, signInWithGoogleCredential } from '../services/auth';
+import { getAuthErrorMessage, signInWithGoogleCredential, sendPasswordResetEmail } from '../services/auth';
 
 export default function LoginScreen({ navigation }) {
   const { login } = useAuth();
@@ -19,19 +19,14 @@ export default function LoginScreen({ navigation }) {
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [error, setError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMsg, setResetMsg] = useState('');
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: '623158539642-d02mnp4ldgfono95kfe2g0nlfucpiglr.apps.googleusercontent.com',
     responseType: 'id_token',
     usePKCE: false,
   });
-
-  // Log temporário para descobrir o redirect URI exato
-  useEffect(() => {
-    if (request?.redirectUri) {
-      console.log('[Google Auth] redirectUri:', request.redirectUri);
-    }
-  }, [request]);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -56,6 +51,24 @@ export default function LoginScreen({ navigation }) {
   async function handleGoogleSignIn() {
     setError('');
     await promptAsync();
+  }
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setError('Digite seu e-mail acima para receber o link de redefinição.');
+      return;
+    }
+    setResetLoading(true);
+    setResetMsg('');
+    setError('');
+    try {
+      await sendPasswordResetEmail(email.trim());
+      setResetMsg('Link de redefinição enviado! Verifique seu e-mail.');
+    } catch (e) {
+      setError(getAuthErrorMessage(e.code) || 'Não foi possível enviar o e-mail. Tente novamente.');
+    } finally {
+      setResetLoading(false);
+    }
   }
 
   async function handleSignIn() {
@@ -127,9 +140,17 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
             }
           />
-          <TouchableOpacity style={styles.forgotWrap}>
-            <Text style={styles.forgot}>Esqueceu a senha?</Text>
+          <TouchableOpacity style={styles.forgotWrap} onPress={handleForgotPassword} disabled={resetLoading}>
+            <Text style={styles.forgot}>
+              {resetLoading ? 'Enviando...' : 'Esqueceu a senha?'}
+            </Text>
           </TouchableOpacity>
+
+          {resetMsg ? (
+            <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium', marginBottom: 8, textAlign: 'center' }}>
+              {resetMsg}
+            </Text>
+          ) : null}
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -162,12 +183,7 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.skipText}>Continuar navegando sem login →</Text>
           </TouchableOpacity>
 
-          {request?.redirectUri ? (
-            <Text selectable style={{ fontSize: 10, color: C.subtle, textAlign: 'center', marginTop: 8, paddingHorizontal: 16 }}>
-              {request.redirectUri}
-            </Text>
-          ) : null}
-        </View>
+</View>
 
         <View style={styles.bottomText}>
           <Text style={styles.bottomCaption}>Não tem conta?</Text>
