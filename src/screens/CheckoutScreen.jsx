@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile } from '../services/firestore';
+import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
@@ -273,6 +273,7 @@ export default function CheckoutScreen({ navigation }) {
           console.warn('[Checkout] addPedidoAdmin error', e);
         }
       }
+      await decrementarEstoque(items);
       clearCart();
       navigation.navigate('OrderConfirmation', { orderId });
     } catch (e) {

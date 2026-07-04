@@ -7,8 +7,10 @@ import {
   query,
   where,
   setDoc,
+  updateDoc,
   deleteDoc,
   writeBatch,
+  increment,
   serverTimestamp,
 } from 'firebase/firestore';
 import app from './firebase';
@@ -407,6 +409,29 @@ export async function hasUserBoughtProduct(uid, productId) {
   } catch (e) {
     console.warn('[hasUserBoughtProduct]', e.message);
     return false;
+  }
+}
+
+export async function decrementarEstoque(items) {
+  if (!items || items.length === 0) return;
+  try {
+    const batch = writeBatch(db);
+    for (const item of items) {
+      if (!item.id) continue;
+      const ref = doc(db, 'produtos', String(item.id));
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const currentStock = snap.data().stock ?? 0;
+      const newStock = Math.max(0, currentStock - (item.qty || 1));
+      batch.update(ref, {
+        stock: newStock,
+        status: newStock === 0 ? 'Esgotado' : 'Ativo',
+        updatedAt: new Date(),
+      });
+    }
+    await batch.commit();
+  } catch (e) {
+    console.warn('[decrementarEstoque]', e.message);
   }
 }
 
