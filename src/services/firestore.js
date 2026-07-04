@@ -185,9 +185,14 @@ export async function addPedidoAdmin(uid, orderId, orderData, userProfile) {
       city: orderData.deliveryAddress?.city || '',
       number: '#' + orderId.slice(-6),
       total: orderData.total || 0,
+      subtotal: orderData.subtotal || 0,
       freight: orderData.shippingCost || 0,
       shipping: orderData.shippingMethod || '',
       payment: orderData.paymentMethod || 'pix',
+      // Cupom/desconto — o painel admin lê estes nomes de campo
+      // (raw.coupon / raw.discountValue) no order-detail.
+      coupon: orderData.coupon || '',
+      discountValue: orderData.discount || 0,
       status: 'Pendente',
       tracking: '',
       // Array original do carrinho — necessário para o app sincronizar o
@@ -402,6 +407,16 @@ export async function hasUserBoughtProduct(uid, productId) {
   } catch (e) {
     console.warn('[hasUserBoughtProduct]', e.message);
     return false;
+  }
+}
+
+export async function getCupons() {
+  try {
+    const snap = await getDocs(collection(db, 'cupons'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('[getCupons]', e);
+    return [];
   }
 }
 

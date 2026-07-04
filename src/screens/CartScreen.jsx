@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,6 +12,7 @@ export default function CartScreen({ navigation }) {
     coupon,
     setCoupon,
     couponApplied,
+    couponError,
     applyCoupon,
     removeItem,
     updateQuantity,
@@ -21,6 +22,8 @@ export default function CartScreen({ navigation }) {
     discount,
     total,
   } = useCart();
+
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -103,12 +106,28 @@ export default function CartScreen({ navigation }) {
               />
             </View>
             <TouchableOpacity
-              onPress={() => applyCoupon(coupon)}
+              onPress={async () => {
+                if (couponApplied) return;
+                setApplyingCoupon(true);
+                await applyCoupon(coupon);
+                setApplyingCoupon(false);
+              }}
               style={styles.couponBtn}
             >
-              <Text style={styles.couponBtnText}>{couponApplied ? 'Aplicado' : 'Aplicar'}</Text>
+              <Text style={styles.couponBtnText}>
+                {applyingCoupon ? '...' : couponApplied ? 'Aplicado ✓' : 'Aplicar'}
+              </Text>
             </TouchableOpacity>
           </View>
+          {couponError ? (
+            <Text style={{ fontSize: 12, color: '#c0392b', fontFamily: 'WorkSans_500Medium', marginTop: 6, paddingHorizontal: 4 }}>
+              {couponError}
+            </Text>
+          ) : couponApplied ? (
+            <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium', marginTop: 6, paddingHorizontal: 4 }}>
+              ✓ Cupom aplicado com sucesso!
+            </Text>
+          ) : null}
         </View>
 
         {/* Summary */}

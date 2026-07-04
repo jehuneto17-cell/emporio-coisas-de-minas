@@ -7,18 +7,17 @@ import React, {
   useState,
 } from 'react';
 import { useAuth } from './AuthContext';
+import { fmt } from '../theme';
 import {
   getCartItems,
   setCartItem,
   deleteCartItem,
   clearCartItems,
+  getCupons,
 } from '../services/firestore';
 
 const CartContext = createContext(null);
 
-// Regras de negócio do carrinho — centralizadas para fácil ajuste.
-const COUPON_CODE = 'CANASTRA10';
-const COUPON_DISCOUNT = 11.0;
 const SHIPPING_FEE = 15.9;
 
 export function CartProvider({ children }) {
@@ -26,6 +25,8 @@ export function CartProvider({ children }) {
   const [items, setItems] = useState([]);
   const [coupon, setCoupon] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [couponData, setCouponData] = useState(null);
   // true enquanto a leitura inicial do Firestore não terminou (só quando logado).
   const [hydrating, setHydrating] = useState(false);
 
@@ -84,20 +85,6 @@ export function CartProvider({ children }) {
     if (user) clearCartItems(user.uid).catch((e) => console.warn('[Cart]', e));
   }, [user]);
 
-  // Aplica o cupom. Retorna `true` se válido, `false` caso contrário.
-  const applyCoupon = useCallback((code) => {
-    const trimmed = (code ?? '').trim();
-    setCoupon(trimmed);
-    const isValid = trimmed.toUpperCase() === COUPON_CODE;
-    setCouponApplied(isValid);
-    return isValid;
-  }, []);
-
-  const removeCoupon = useCallback(() => {
-    setCoupon('');
-    setCouponApplied(false);
-  }, []);
-
   const subtotal = useMemo(
     () => items.reduce((sum, x) => sum + x.price * x.qty, 0),
     [items]
@@ -108,8 +95,62 @@ export function CartProvider({ children }) {
     [items]
   );
 
+  const applyCoupon = useCallback(async (code) => {
+    const trimmed = (code ?? '').trim().toUpperCase();
+    setCoupon(trimmed);
+    setCouponError('');
+    if (!trimmed) {
+      setCouponApplied(false);
+      setCouponData(null);
+      return false;
+    }
+    try {
+      const cupons = await getCupons();
+      const found = cupons.find(
+        (c) => (c.code || c.codigo || '').toUpperCase() === trimmed
+      );
+      if (!found) {
+        setCouponApplied(false);
+        setCouponData(null);
+        setCouponError('Cupom inválido ou não encontrado.');
+        return false;
+      }
+      const status = (found.status || '').toLowerCase();
+      if (status !== 'ativo') {
+        setCouponApplied(false);
+        setCouponData(null);
+        setCouponError('Este cupom não está mais ativo.');
+        return false;
+      }
+      const minOrder = found.minOrder ?? found.minimo ?? 0;
+      if (subtotal < minOrder) {
+        setCouponApplied(false);
+        setCouponData(null);
+        setCouponError(`Pedido mínimo de ${fmt(minOrder)} para usar este cupom.`);
+        return false;
+      }
+      const discountValue = found.discountValue ?? found.valor ?? found.discount ?? 0;
+      setCouponData({ ...found, discountValue });
+      setCouponApplied(true);
+      return true;
+    } catch (e) {
+      console.warn('[Cupom] erro ao buscar cupons:', e);
+      setCouponError('Erro ao validar cupom. Tente novamente.');
+      setCouponApplied(false);
+      setCouponData(null);
+      return false;
+    }
+  }, [subtotal]);
+
+  const removeCoupon = useCallback(() => {
+    setCoupon('');
+    setCouponApplied(false);
+    setCouponData(null);
+    setCouponError('');
+  }, []);
+
   const shipping = items.length ? SHIPPING_FEE : 0;
-  const discount = couponApplied && items.length ? COUPON_DISCOUNT : 0;
+  const discount = couponApplied && couponData && items.length ? couponData.discountValue : 0;
   const total = Math.max(0, subtotal + shipping - discount);
 
   const value = {
@@ -118,6 +159,8 @@ export function CartProvider({ children }) {
     coupon,
     setCoupon,
     couponApplied,
+    couponError,
+    couponData,
     applyCoupon,
     removeCoupon,
     addItem,
