@@ -70,7 +70,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const heroImage = (product.images && product.images[0]) || product.imageUrl || null;
 
   function handleAddToCart() {
-    addItem({ ...product, weight, qty });
+    addItem({ ...product, price: product.promo || product.price, weight, qty });
     navigation.navigate('Main', { screen: 'Carrinho' });
   }
 

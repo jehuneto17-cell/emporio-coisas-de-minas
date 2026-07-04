@@ -96,38 +96,42 @@ export default function CartScreen({ navigation }) {
         {/* Coupon */}
         <View style={styles.section}>
           <View style={styles.couponCard}>
-            <View style={styles.couponInput}>
-              <Ionicons name="pricetag-outline" size={16} color={C.subtle} />
-              <TextInput
-                value={coupon} onChangeText={setCoupon}
-                placeholder="Inserir cupom de desconto"
-                placeholderTextColor={C.subtle}
-                style={styles.couponText}
-              />
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                <View style={styles.couponInput}>
+                  <Ionicons name="pricetag-outline" size={16} color={C.subtle} />
+                  <TextInput
+                    value={coupon} onChangeText={setCoupon}
+                    placeholder="Inserir cupom de desconto"
+                    placeholderTextColor={C.subtle}
+                    style={styles.couponText}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={async () => {
+                    if (couponApplied) return;
+                    setApplyingCoupon(true);
+                    await applyCoupon(coupon);
+                    setApplyingCoupon(false);
+                  }}
+                  style={styles.couponBtn}
+                >
+                  <Text style={styles.couponBtnText}>
+                    {applyingCoupon ? '...' : couponApplied ? 'Aplicado ✓' : 'Aplicar'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {couponError ? (
+                <Text style={{ fontSize: 12, color: '#c0392b', fontFamily: 'WorkSans_500Medium', marginTop: 8 }}>
+                  {couponError}
+                </Text>
+              ) : couponApplied ? (
+                <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium', marginTop: 8 }}>
+                  ✓ Cupom aplicado com sucesso!
+                </Text>
+              ) : null}
             </View>
-            <TouchableOpacity
-              onPress={async () => {
-                if (couponApplied) return;
-                setApplyingCoupon(true);
-                await applyCoupon(coupon);
-                setApplyingCoupon(false);
-              }}
-              style={styles.couponBtn}
-            >
-              <Text style={styles.couponBtnText}>
-                {applyingCoupon ? '...' : couponApplied ? 'Aplicado ✓' : 'Aplicar'}
-              </Text>
-            </TouchableOpacity>
           </View>
-          {couponError ? (
-            <Text style={{ fontSize: 12, color: '#c0392b', fontFamily: 'WorkSans_500Medium', marginTop: 6, paddingHorizontal: 4 }}>
-              {couponError}
-            </Text>
-          ) : couponApplied ? (
-            <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium', marginTop: 6, paddingHorizontal: 4 }}>
-              ✓ Cupom aplicado com sucesso!
-            </Text>
-          ) : null}
         </View>
 
         {/* Summary */}
@@ -191,7 +195,7 @@ const styles = StyleSheet.create({
   qtyBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   qtyBtnActive: { backgroundColor: C.brown, borderWidth: 0 },
   qtyNum: { fontSize: 15, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', minWidth: 16, textAlign: 'center' },
-  couponCard: { backgroundColor: C.card, borderRadius: 16, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' },
+  couponCard: { backgroundColor: C.card, borderRadius: 16, padding: 12 },
   couponInput: { flex: 1, height: 44, borderRadius: 8, borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10, overflow: 'hidden' },
   couponText: { flex: 1, fontSize: 13, color: C.ink, fontFamily: 'WorkSans_400Regular', outlineStyle: 'none', minWidth: 0 },
   couponBtn: { height: 44, paddingHorizontal: 18, borderRadius: 8, backgroundColor: C.brown, alignItems: 'center', justifyContent: 'center' },
