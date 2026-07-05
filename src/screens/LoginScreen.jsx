@@ -38,8 +38,10 @@ export default function LoginScreen({ navigation }) {
       setLoadingGoogle(true);
       signInWithGoogleCredential(idToken)
         .then(() => {
-          if (navigation.canGoBack()) navigation.goBack();
-          else navigation.replace('Main');
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Main' }],
+          });
         })
         .catch((e) => setError(getAuthErrorMessage(e.code)))
         .finally(() => setLoadingGoogle(false));
@@ -80,11 +82,10 @@ export default function LoginScreen({ navigation }) {
     setLoadingAuth(true);
     try {
       await login(email.trim(), pwd);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      } else {
-        navigation.replace('Main');
-      }
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
     } catch (e) {
       setError(getAuthErrorMessage(e.code));
     } finally {
