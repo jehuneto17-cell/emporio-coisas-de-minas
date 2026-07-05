@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  Modal, ActivityIndicator, Platform, Alert,
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
+  Modal, ActivityIndicator, Platform, Alert, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +15,16 @@ const CEP_ORIGEM = '37900900';
 const FRETE_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? 'https://emporio-coisas-de-minas.vercel.app/api/calcular-frete'
   : 'http://localhost:8081/api/calcular-frete';
+
+const MP_PUBLIC_KEY = 'APP_USR-1cbd888f-0b77-47d3-9d65-62a584297e32';
+
+const PIX_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-pix'
+  : 'http://localhost:8081/api/criar-pagamento-pix';
+
+const CARTAO_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-cartao'
+  : 'http://localhost:8081/api/criar-pagamento-cartao';
 
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
@@ -34,6 +44,19 @@ export default function CheckoutScreen({ navigation }) {
   const [method, setMethod] = useState(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [shippingError, setShippingError] = useState(null);
+
+  // PIX
+  const [pixData, setPixData] = useState(null);
+  const [pixLoading, setPixLoading] = useState(false);
+  const [pixCopied, setPixCopied] = useState(false);
+
+  // Cartão
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardName, setCardName] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [cardError, setCardError] = useState('');
+  const [cardLoading, setCardLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -207,6 +230,48 @@ export default function CheckoutScreen({ navigation }) {
     return obj;
   }
 
+  async function gerarPixReal(orderId) {
+    setPixLoading(true);
+    try {
+      const res = await fetch(PIX_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          total: checkoutTotal,
+          email: user?.email || 'cliente@emporiominas.com.br',
+          orderId,
+          description: `Pedido #${orderId.slice(-6)} — Empório Coisas de Minas`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar PIX');
+      setPixData(data);
+    } catch (e) {
+      console.warn('[PIX]', e.message);
+      if (Platform.OS === 'web') window.alert('Erro ao gerar PIX: ' + e.message);
+      else Alert.alert('Erro', 'Não foi possível gerar o PIX. Tente novamente.');
+    } finally {
+      setPixLoading(false);
+    }
+  }
+
+  function copiarPix() {
+    if (!pixData?.qr_code) return;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(pixData.qr_code);
+    }
+    setPixCopied(true);
+    setTimeout(() => setPixCopied(false), 3000);
+  }
+
+  function formatCardNumber(v) {
+    return v.replace(/\D/g, '').slice(0, 16).replace(/(.{4})/g, '$1 ').trim();
+  }
+  function formatExpiry(v) {
+    const d = v.replace(/\D/g, '').slice(0, 4);
+    return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+  }
+
   async function handleConfirm() {
     if (!user?.uid) {
       setShowAuthModal(true);
@@ -274,6 +339,10 @@ export default function CheckoutScreen({ navigation }) {
         }
       }
       await decrementarEstoque(items);
+      // Gera PIX real se tab === 'pix'
+      if (tab === 'pix') {
+        await gerarPixReal(orderId);
+      }
       clearCart();
       navigation.navigate('OrderConfirmation', { orderId });
     } catch (e) {
@@ -461,25 +530,116 @@ export default function CheckoutScreen({ navigation }) {
           </View>
           {tab === 'pix' && (
             <View style={styles.pixWrap}>
-              <View style={styles.qrCode}>
-                <Text style={styles.qrText}>QR Code Pix</Text>
-              </View>
-              <View style={styles.pixCopy}>
-                <Text style={styles.pixCode} numberOfLines={1}>00020126580014br.gov.bcb.pix...</Text>
-                <TouchableOpacity style={styles.copyBtn}>
-                  <Ionicons name="copy-outline" size={16} color="#fff" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.countdownRow}>
-                <Ionicons name="time-outline" size={14} color={C.terra} />
-                <Text style={styles.countdownText}>Código válido por <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{mmss}</Text></Text>
-              </View>
+              {pixLoading ? (
+                <ActivityIndicator size="large" color={C.terra} />
+              ) : pixData ? (
+                <>
+                  {pixData.qr_code_base64 ? (
+                    <View style={styles.qrCode}>
+                      <Image
+                        source={{ uri: `data:image/png;base64,${pixData.qr_code_base64}` }}
+                        style={{ width: 130, height: 130 }}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.qrCode}>
+                      <Text style={styles.qrText}>QR Code</Text>
+                    </View>
+                  )}
+                  <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+                    Escaneie o QR Code ou copie o código abaixo
+                  </Text>
+                  <TouchableOpacity style={styles.pixCopy} onPress={copiarPix}>
+                    <Text style={styles.pixCode} numberOfLines={2}>{pixData.qr_code}</Text>
+                    <View style={styles.copyBtn}>
+                      <Ionicons name={pixCopied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
+                  {pixCopied && (
+                    <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium' }}>
+                      ✓ Código copiado!
+                    </Text>
+                  )}
+                  <View style={styles.countdownRow}>
+                    <Ionicons name="time-outline" size={14} color={C.terra} />
+                    <Text style={styles.countdownText}>
+                      PIX válido por <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{mmss}</Text>
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <View style={{ alignItems: 'center', gap: 10, paddingVertical: 16 }}>
+                  <Ionicons name="qr-code-outline" size={48} color={C.muted} />
+                  <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+                    O QR Code PIX será gerado ao confirmar o pedido.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
           {tab === 'card' && (
-            <View style={styles.emptyState}>
-              <Ionicons name="card-outline" size={32} color={C.muted} />
-              <Text style={styles.emptyStateText}>Adicione um cartão para continuar.</Text>
+            <View style={{ gap: 12 }}>
+              <View>
+                <Text style={styles.fieldLabel}>Número do cartão</Text>
+                <TextInput
+                  style={styles.cardInput}
+                  placeholder="0000 0000 0000 0000"
+                  placeholderTextColor={C.subtle}
+                  value={cardNumber}
+                  onChangeText={(v) => setCardNumber(formatCardNumber(v))}
+                  keyboardType="numeric"
+                  maxLength={19}
+                  outlineStyle="none"
+                />
+              </View>
+              <View>
+                <Text style={styles.fieldLabel}>Nome no cartão</Text>
+                <TextInput
+                  style={styles.cardInput}
+                  placeholder="Como está no cartão"
+                  placeholderTextColor={C.subtle}
+                  value={cardName}
+                  onChangeText={setCardName}
+                  autoCapitalize="characters"
+                  outlineStyle="none"
+                />
+              </View>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>Validade</Text>
+                  <TextInput
+                    style={styles.cardInput}
+                    placeholder="MM/AA"
+                    placeholderTextColor={C.subtle}
+                    value={cardExpiry}
+                    onChangeText={(v) => setCardExpiry(formatExpiry(v))}
+                    keyboardType="numeric"
+                    maxLength={5}
+                    outlineStyle="none"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLabel}>CVV</Text>
+                  <TextInput
+                    style={styles.cardInput}
+                    placeholder="123"
+                    placeholderTextColor={C.subtle}
+                    value={cardCvv}
+                    onChangeText={(v) => setCardCvv(v.replace(/\D/g, '').slice(0, 4))}
+                    keyboardType="numeric"
+                    maxLength={4}
+                    secureTextEntry
+                    outlineStyle="none"
+                  />
+                </View>
+              </View>
+              {cardError ? (
+                <Text style={{ fontSize: 12, color: '#c0392b', fontFamily: 'WorkSans_500Medium' }}>{cardError}</Text>
+              ) : null}
+              <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+                🔒 Seus dados são criptografados pelo Mercado Pago
+              </Text>
             </View>
           )}
           {tab === 'boleto' && (
@@ -594,6 +754,8 @@ const styles = StyleSheet.create({
   countdownText: { fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
   emptyState: { alignItems: 'center', paddingVertical: 24, gap: 8 },
   emptyStateText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' },
+  fieldLabel: { fontSize: 12, color: C.brown, fontFamily: 'WorkSans_600SemiBold', marginBottom: 6, letterSpacing: 0.5 },
+  cardInput: { height: 46, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, fontSize: 14, color: C.ink, fontFamily: 'WorkSans_400Regular' },
   summaryTitle: { fontSize: 15, color: C.brown, fontFamily: 'PlusJakartaSans_600SemiBold', marginBottom: 8 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
   summaryLabel: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_500Medium' },
