@@ -69,6 +69,9 @@ export default function OrderTrackingScreen({ navigation, route }) {
     ]).then(([orderData, adminData]) => {
       setOrder(orderData);
       setPedidoAdmin(adminData);
+      console.log('[OrderTracking] order data:', JSON.stringify(orderData));
+      console.log('[OrderTracking] pixQrCode:', orderData?.pixQrCode);
+      console.log('[OrderTracking] pixStatus:', orderData?.pixStatus);
     }).catch(e => console.warn('[OrderTracking]', e))
       .finally(() => setLoading(false));
   }, [orderId, user?.uid]);

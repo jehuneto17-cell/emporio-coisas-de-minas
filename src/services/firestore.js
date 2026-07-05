@@ -139,7 +139,7 @@ export async function addOrder(uid, orderData) {
   const orderId = Date.now().toString();
   await setDoc(doc(db, 'users', uid, 'orders', orderId), {
     ...orderData,
-    status: 'pendente',
+    status: orderData.status || 'pendente',
     createdAt: serverTimestamp(),
   });
   return orderId;
