@@ -11,9 +11,14 @@
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
       /* ── Remove outline azul/preto do browser em inputs focados ── */
-      input:focus, textarea:focus, select:focus {
+      input, textarea, select,
+      input:focus, textarea:focus, select:focus,
+      input:focus-visible, textarea:focus-visible, select:focus-visible,
+      [contenteditable]:focus, [contenteditable]:focus-visible,
+      *:focus {
         outline: none !important;
         box-shadow: none !important;
+        -webkit-tap-highlight-color: transparent !important;
       }
 
       /* ── MODO DESKTOP: app simulado como celular centralizado ── */
