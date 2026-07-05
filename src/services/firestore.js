@@ -147,6 +147,7 @@ export async function addOrder(uid, orderData) {
 
 export async function savePixData(uid, orderId, pixData) {
   try {
+    console.log('[savePixData] gravando pixQrCode para orderId:', orderId, 'uid:', uid);
     await setDoc(doc(db, 'users', uid, 'orders', orderId), {
       pixId: pixData.id,
       pixQrCode: pixData.qr_code,

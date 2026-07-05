@@ -254,14 +254,20 @@ export default function CheckoutScreen({ navigation }) {
         }),
       });
       const data = await res.json();
+      console.log('[PIX] resposta da API:', JSON.stringify(data));
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar PIX');
+      if (!data.qr_code && !data.qr_code_base64) {
+        throw new Error('QR Code não retornado pelo Mercado Pago. Verifique o valor mínimo (R$ 0,01).');
+      }
       setPixData(data);
       setPixGenerated(true);
       setCurrentOrderId(orderId);
       setPaymentStatus('pending');
       // Salva QR Code no Firestore para o cliente pagar depois
+      console.log('[PIX] salvando no Firestore — pixId:', data.id, 'uid:', user?.uid, 'orderId:', orderId);
       if (user?.uid) {
         await savePixData(user.uid, orderId, data);
+        console.log('[PIX] savePixData concluído');
       }
       // Inicia polling a cada 5s
       if (data.id) {
