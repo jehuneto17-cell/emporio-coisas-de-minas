@@ -163,8 +163,18 @@ export default function OrderTrackingScreen({ navigation, route }) {
         {(order?.pixQrCode || order?.pixStatus === 'pending') && order?.pixStatus !== 'approved' && (
           <View style={[styles.card, { alignItems: 'center', gap: 14 }]}>
             <Text style={[styles.cardTitle, { textAlign: 'center' }]}>💳 Pagar com PIX</Text>
+            {order?.total ? (
+              <View style={{ backgroundColor: '#e8f5e9', borderRadius: 12, paddingHorizontal: 20, paddingVertical: 10 }}>
+                <Text style={{ fontSize: 11, color: '#2e7d32', fontFamily: 'WorkSans_600SemiBold', textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  Valor a pagar
+                </Text>
+                <Text style={{ fontSize: 26, color: '#2e7d32', fontFamily: 'PlusJakartaSans_800ExtraBold', textAlign: 'center', marginTop: 2 }}>
+                  {fmt(order.total)}
+                </Text>
+              </View>
+            ) : null}
             <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-              Seu pedido aguarda pagamento. Escaneie o QR Code ou copie o código.
+              Escaneie o QR Code ou copie o código abaixo
             </Text>
             {order?.pixQrCodeBase64 ? (
               <View style={{ width: 180, height: 180, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
