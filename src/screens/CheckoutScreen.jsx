@@ -34,6 +34,7 @@ export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
   const { items, totalItems, subtotal, discount, coupon, couponApplied, clearCart } = useCart();
 
+  const [deliveryMode, setDeliveryMode] = useState('delivery'); // 'delivery' | 'pickup'
   const [tab, setTab] = useState('pix');
   const [seconds, setSeconds] = useState(15 * 60);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -223,7 +224,8 @@ export default function CheckoutScreen({ navigation }) {
 
   const selectedOption = shippingOptions.find((o) => o.id === method) || null;
   const shippingCost = selectedOption ? parseFloat(selectedOption.price) : 0;
-  const checkoutTotal = Math.max(0, subtotal - discount + shippingCost);
+  const effectiveShippingCost = deliveryMode === 'pickup' ? 0 : shippingCost;
+  const checkoutTotal = Math.max(0, subtotal - discount + effectiveShippingCost);
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
   function cleanUndefined(obj) {
@@ -323,11 +325,11 @@ export default function CheckoutScreen({ navigation }) {
       setShowAuthModal(true);
       return;
     }
-    if (!deliveryAddress) {
+    if (deliveryMode === 'delivery' && !deliveryAddress) {
       setCheckoutError('Adicione um endereço de entrega antes de continuar.');
       return;
     }
-    if (!method && !shippingError) {
+    if (deliveryMode === 'delivery' && !method && !shippingError) {
       setCheckoutError('Aguarde o cálculo do frete ou tente novamente.');
       return;
     }
@@ -345,13 +347,16 @@ export default function CheckoutScreen({ navigation }) {
         subtotal,
         discount,
         coupon: couponApplied ? coupon : '',
-        shipping: shippingCost,
+        shipping: effectiveShippingCost,
         total: checkoutTotal,
         paymentMethod: tab,
-        shippingMethod: selectedOption?.name || method,
-        shippingCompany: selectedOption?.company?.name || '',
-        shippingCost,
-        deliveryAddress: deliveryAddress || null,
+        deliveryMode,
+        shippingMethod: deliveryMode === 'pickup' ? 'Retirada na loja' : (selectedOption?.name || method),
+        shippingCompany: deliveryMode === 'pickup' ? '' : (selectedOption?.company?.name || ''),
+        shippingCost: effectiveShippingCost,
+        deliveryAddress: deliveryMode === 'pickup'
+          ? { label: 'Retirada na loja', city: 'Itaú de Minas', state: 'MG' }
+          : (deliveryAddress || null),
         status: tab === 'pix' ? 'Aguardando pagamento' : 'Pendente',
       }));
 
@@ -370,10 +375,13 @@ export default function CheckoutScreen({ navigation }) {
             subtotal,
             discount,
             coupon: couponApplied ? coupon : '',
-            shippingMethod: selectedOption?.name || '',
-            shippingCompany: selectedOption?.company?.name || '',
-            shippingCost,
-            deliveryAddress,
+            deliveryMode,
+            shippingMethod: deliveryMode === 'pickup' ? 'Retirada na loja' : (selectedOption?.name || ''),
+            shippingCompany: deliveryMode === 'pickup' ? '' : (selectedOption?.company?.name || ''),
+            shippingCost: effectiveShippingCost,
+            deliveryAddress: deliveryMode === 'pickup'
+              ? { label: 'Retirada na loja', city: 'Itaú de Minas', state: 'MG' }
+              : deliveryAddress,
             paymentMethod: tab,
             status: tab === 'pix' ? 'Aguardando pagamento' : 'Pendente',
           }), profileForPedido);
@@ -399,9 +407,11 @@ export default function CheckoutScreen({ navigation }) {
     }
   }
 
-  const shippingLabel = selectedOption
-    ? `Frete ${selectedOption.company?.name || selectedOption.name}`
-    : 'Frete';
+  const shippingLabel = deliveryMode === 'pickup'
+    ? 'Retirada na loja'
+    : selectedOption
+      ? `Frete ${selectedOption.company?.name || selectedOption.name}`
+      : 'Frete';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -464,7 +474,49 @@ export default function CheckoutScreen({ navigation }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 16, paddingBottom: 130 }}>
+        {/* Modo de entrega */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardIcon}>🚚</Text>
+            <Text style={styles.cardTitle}>Como quer receber?</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <TouchableOpacity
+              style={[styles.deliveryModeBtn, deliveryMode === 'delivery' && styles.deliveryModeBtnActive]}
+              onPress={() => { setDeliveryMode('delivery'); setCheckoutError(''); }}
+            >
+              <Ionicons name="car-outline" size={20} color={deliveryMode === 'delivery' ? '#fff' : C.muted} />
+              <Text style={[styles.deliveryModeTxt, deliveryMode === 'delivery' && styles.deliveryModeTxtActive]}>
+                Receber em casa
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.deliveryModeBtn, deliveryMode === 'pickup' && styles.deliveryModeBtnActive]}
+              onPress={() => { setDeliveryMode('pickup'); setCheckoutError(''); }}
+            >
+              <Ionicons name="storefront-outline" size={20} color={deliveryMode === 'pickup' ? '#fff' : C.muted} />
+              <Text style={[styles.deliveryModeTxt, deliveryMode === 'pickup' && styles.deliveryModeTxtActive]}>
+                Retirar na loja
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {deliveryMode === 'pickup' && (
+            <View style={{ marginTop: 12, backgroundColor: '#fef3e2', borderRadius: 10, padding: 12, gap: 4 }}>
+              <Text style={{ fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' }}>
+                📍 Empório Coisas de Minas
+              </Text>
+              <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' }}>
+                Itaú de Minas · MG
+              </Text>
+              <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', marginTop: 4 }}>
+                Após o pagamento, apresente o código do pedido na loja para retirar.
+              </Text>
+            </View>
+          )}
+        </View>
+
         {/* Address */}
+        {deliveryMode === 'delivery' && (
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardIcon}>📍</Text>
@@ -503,11 +555,13 @@ export default function CheckoutScreen({ navigation }) {
             </View>
           )}
         </View>
+        )}
 
         {/* Shipping */}
+        {deliveryMode === 'delivery' && (
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardIcon}>🚚</Text>
+            <Text style={styles.cardIcon}>📦</Text>
             <Text style={styles.cardTitle}>Método de Envio</Text>
           </View>
 
@@ -556,6 +610,7 @@ export default function CheckoutScreen({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+        )}
 
         {/* Payment */}
         <View style={styles.card}>
@@ -715,7 +770,7 @@ export default function CheckoutScreen({ navigation }) {
           <SummaryRow label={`${totalItems} ${totalItems === 1 ? 'item' : 'itens'}`} value={fmt(subtotal)} />
           <SummaryRow
             label={shippingLabel}
-            value={loadingShipping ? '…' : shippingCost > 0 ? fmt(shippingCost) : '—'}
+            value={deliveryMode === 'pickup' ? 'Grátis' : loadingShipping ? '…' : effectiveShippingCost > 0 ? fmt(effectiveShippingCost) : '—'}
           />
           {couponApplied && <SummaryRow label="Desconto" value={`− ${fmt(discount)}`} highlight />}
           <View style={styles.summaryDivider} />
@@ -854,4 +909,8 @@ const styles = StyleSheet.create({
   modalBtnPrimaryText: { color: '#fff', fontSize: 15, fontFamily: 'PlusJakartaSans_700Bold' },
   modalBtnSecondary: { height: 50, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   modalBtnSecondaryText: { color: C.muted, fontSize: 15, fontFamily: 'WorkSans_500Medium' },
+  deliveryModeBtn: { flex: 1, height: 52, borderRadius: 10, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#fff' },
+  deliveryModeBtnActive: { backgroundColor: C.brown, borderColor: C.brown },
+  deliveryModeTxt: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_600SemiBold', textAlign: 'center' },
+  deliveryModeTxtActive: { color: '#fff' },
 });
