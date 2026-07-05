@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   Image, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Google from 'expo-auth-session/providers/google';
 import { C } from '../theme';
 import { useAuth } from '../context/AuthContext';
-import { getAuthErrorMessage, signInWithGoogleCredential } from '../services/auth';
+import { getAuthErrorMessage } from '../services/auth';
 import { createUserProfile } from '../services/firestore';
 
 export default function SignUpScreen({ navigation }) {
@@ -23,44 +22,6 @@ export default function SignUpScreen({ navigation }) {
   const [focus, setFocus] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
-
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '623158539642-d02mnp4ldgfono95kfe2g0nlfucpiglr.apps.googleusercontent.com',
-    responseType: 'id_token',
-    usePKCE: false,
-  });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params?.id_token ?? response.authentication?.idToken;
-      if (!idToken) {
-        setError('Não foi possível obter o token do Google. Tente novamente.');
-        return;
-      }
-      setLoadingGoogle(true);
-      signInWithGoogleCredential(idToken)
-        .then(() => navigation.replace('Main'))
-        .catch((e) => setError(getAuthErrorMessage(e.code)))
-        .finally(() => setLoadingGoogle(false));
-    } else if (response?.type === 'error') {
-      setError('Erro ao autenticar com Google. Tente novamente.');
-    }
-  }, [response]);
-
-  async function handleGoogleSignIn() {
-    setError('');
-    if (!request) {
-      setError('Google Auth não está pronto. Aguarde e tente novamente.');
-      return;
-    }
-    try {
-      await promptAsync();
-    } catch (e) {
-      console.warn('[Google SignUp] promptAsync error:', e);
-      setError('Erro ao abrir login com Google. Tente novamente.');
-    }
-  }
 
   async function handleSignUp() {
     if (!name.trim() || !email.trim() || !pwd) {
@@ -158,7 +119,7 @@ export default function SignUpScreen({ navigation }) {
           </View>
 
           <View style={styles.socialRow}>
-            <SocialBtn label="Google" icon="logo-google" onPress={handleGoogleSignIn} loading={loadingGoogle} disabled={!request} />
+            <SocialBtn label="Google" icon="logo-google" onPress={() => navigation.navigate('Login')} />
             <SocialBtn
               label="Facebook"
               icon="logo-facebook"
@@ -197,12 +158,12 @@ function Field({ label, icon, placeholder, value, onChangeText, secureTextEntry,
   );
 }
 
-function SocialBtn({ label, icon, onPress, loading, disabled }) {
+function SocialBtn({ label, icon, onPress, loading }) {
   return (
     <TouchableOpacity
-      style={[styles.socialBtn, (loading || disabled) && { opacity: 0.5 }]}
+      style={[styles.socialBtn, loading && { opacity: 0.6 }]}
       onPress={onPress}
-      disabled={loading || disabled}
+      disabled={loading}
     >
       {loading
         ? <ActivityIndicator size="small" color={C.ink} />
