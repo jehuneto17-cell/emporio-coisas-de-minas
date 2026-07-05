@@ -64,6 +64,7 @@ export default function CheckoutScreen({ navigation }) {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
   const [cardError, setCardError] = useState('');
+  const [checkoutError, setCheckoutError] = useState('');
   const [cardLoading, setCardLoading] = useState(false);
 
   useEffect(() => {
@@ -288,8 +289,7 @@ export default function CheckoutScreen({ navigation }) {
       }
     } catch (e) {
       console.warn('[PIX]', e.message);
-      if (Platform.OS === 'web') window.alert('Erro ao gerar PIX: ' + e.message);
-      else Alert.alert('Erro', 'Não foi possível gerar o PIX. Tente novamente.');
+      setCheckoutError('Não foi possível gerar o PIX. Tente novamente.');
     } finally {
       setPixLoading(false);
     }
@@ -318,26 +318,18 @@ export default function CheckoutScreen({ navigation }) {
       return;
     }
     if (!deliveryAddress) {
-      Platform.OS === 'web'
-        ? window.alert('Adicione um endereço de entrega antes de continuar.')
-        : Alert.alert('Endereço necessário', 'Adicione um endereço de entrega antes de continuar.');
+      setCheckoutError('Adicione um endereço de entrega antes de continuar.');
       return;
     }
     if (!method && !shippingError) {
-      Platform.OS === 'web'
-        ? window.alert('Aguarde o cálculo do frete ou tente novamente.')
-        : Alert.alert('Frete necessário', 'Aguarde o cálculo do frete ou tente novamente.');
+      setCheckoutError('Aguarde o cálculo do frete ou tente novamente.');
       return;
     }
     setConfirming(true);
     try {
       // Se PIX já foi gerado mas não pago, bloqueia
       if (tab === 'pix' && pixGenerated && paymentStatus !== 'approved') {
-        if (Platform.OS === 'web') {
-          window.alert('Aguarde a confirmação do pagamento PIX ou escaneie o QR Code acima.');
-        } else {
-          Alert.alert('Pagamento pendente', 'Escaneie o QR Code acima para pagar.');
-        }
+        setCheckoutError('Escaneie o QR Code acima ou aguarde a confirmação automática do pagamento PIX.');
         setConfirming(false);
         return;
       }
@@ -568,7 +560,7 @@ export default function CheckoutScreen({ navigation }) {
           </View>
           <View style={styles.payTabs}>
             {['pix', 'card', 'boleto'].map((t) => (
-              <TouchableOpacity key={t} onPress={() => setTab(t)}
+              <TouchableOpacity key={t} onPress={() => { setTab(t); setCheckoutError(''); }}
                 style={[styles.payTab, tab === t && styles.payTabActive]}>
                 <Text style={[styles.payTabText, tab === t && styles.payTabTextActive]}>
                   {t === 'pix' ? 'Pix' : t === 'card' ? 'Cartão' : 'Boleto'}
@@ -727,6 +719,18 @@ export default function CheckoutScreen({ navigation }) {
           </View>
         </View>
       </ScrollView>
+
+      {checkoutError ? (
+        <View style={{ marginHorizontal: 16, marginBottom: 8, backgroundColor: '#fdecea', borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="alert-circle-outline" size={18} color="#c0392b" />
+          <Text style={{ flex: 1, fontSize: 13, color: '#c0392b', fontFamily: 'WorkSans_500Medium' }}>
+            {checkoutError}
+          </Text>
+          <TouchableOpacity onPress={() => setCheckoutError('')}>
+            <Ionicons name="close" size={16} color="#c0392b" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <View style={styles.bottomBar}>
         <TouchableOpacity
