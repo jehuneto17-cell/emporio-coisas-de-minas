@@ -536,6 +536,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **Fix: mensagens de erro do checkout inline** (2026-07-05) — `CheckoutScreen.jsx`: todos os `window.alert` e `Alert.alert` substituídos por `setCheckoutError`; banner vermelho com ícone e botão fechar exibido acima do bottomBar; estado `checkoutError` limpo ao trocar de aba de pagamento
 ✅ **Fix: addOrder respeita status recebido pelo caller** (2026-07-05) — `firestore.js`: `addOrder` agora usa `orderData.status || 'pendente'` em vez de `status: 'pendente'` hardcoded — permite que o caller (ex.: CheckoutScreen) passe `status: 'Aguardando pagamento'` para pedidos PIX sem ter o valor sobrescrito
 ✅ **Diagnóstico OrderTrackingScreen — logs de pixQrCode e pixStatus** (2026-07-05) — `OrderTrackingScreen.jsx`: logs temporários adicionados após `setOrder(orderData)` para confirmar se `pixQrCode` e `pixStatus` chegam corretamente ao carregar a tela
+✅ **Diagnóstico fluxo PIX — logs em CheckoutScreen e savePixData** (2026-07-05) — `CheckoutScreen.jsx`: log da resposta da API PIX adicionado; validação explícita `if (!data.qr_code && !data.qr_code_base64)` lança erro descritivo; logs antes/depois do `savePixData` confirmam se uid/orderId estão presentes e se a função conclui. `firestore.js`: log adicionado no início do `try` de `savePixData` para confirmar execução. Objetivo: diagnosticar por que `pixQrCode` não estava sendo salvo no Firestore
 
 ---
 
