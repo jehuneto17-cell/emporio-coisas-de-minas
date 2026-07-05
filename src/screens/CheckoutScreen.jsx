@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque } from '../services/firestore';
+import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque, savePixData, updatePixStatus } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
@@ -53,8 +53,8 @@ export default function CheckoutScreen({ navigation }) {
   const [pixData, setPixData] = useState(null);
   const [pixLoading, setPixLoading] = useState(false);
   const [pixCopied, setPixCopied] = useState(false);
-  const [pixOrderId, setPixOrderId] = useState(null);
-  const [showPixPayment, setShowPixPayment] = useState(false);
+  const [pixGenerated, setPixGenerated] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState(null);
   const [paymentStatus, setPaymentStatus] = useState('pending'); // pending | approved | rejected
   const [pollingInterval, setPollingInterval] = useState(null);
 
@@ -240,9 +240,8 @@ export default function CheckoutScreen({ navigation }) {
 
   async function gerarPixReal(orderId) {
     setPixLoading(true);
-    setPaymentStatus('pending');
     try {
-      const total = checkoutTotal > 0 ? checkoutTotal : 1; // Garante mínimo de R$1
+      const total = checkoutTotal > 0.5 ? checkoutTotal : 1;
       const res = await fetch(PIX_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,7 +255,14 @@ export default function CheckoutScreen({ navigation }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar PIX');
       setPixData(data);
-      // Inicia polling a cada 5 segundos para verificar se o cliente pagou
+      setPixGenerated(true);
+      setCurrentOrderId(orderId);
+      setPaymentStatus('pending');
+      // Salva QR Code no Firestore para o cliente pagar depois
+      if (user?.uid) {
+        await savePixData(user.uid, orderId, data);
+      }
+      // Inicia polling a cada 5s
       if (data.id) {
         const interval = setInterval(async () => {
           try {
@@ -265,9 +271,14 @@ export default function CheckoutScreen({ navigation }) {
             if (vData.status === 'approved') {
               setPaymentStatus('approved');
               clearInterval(interval);
+              if (user?.uid) await updatePixStatus(user.uid, orderId, 'approved');
+              // Navega automaticamente para confirmação
+              clearCart();
+              navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
             } else if (vData.status === 'rejected' || vData.status === 'cancelled') {
               setPaymentStatus('rejected');
               clearInterval(interval);
+              if (user?.uid) await updatePixStatus(user.uid, orderId, 'rejected');
             }
           } catch (e) {
             console.warn('[PIX polling]', e.message);
@@ -319,10 +330,18 @@ export default function CheckoutScreen({ navigation }) {
       return;
     }
     setConfirming(true);
-    console.log('[handleConfirm] user.uid:', user?.uid);
-    console.log('[handleConfirm] items:', JSON.stringify(items));
-    console.log('[handleConfirm] deliveryAddress:', JSON.stringify(deliveryAddress));
     try {
+      // Se PIX já foi gerado mas não pago, bloqueia
+      if (tab === 'pix' && pixGenerated && paymentStatus !== 'approved') {
+        if (Platform.OS === 'web') {
+          window.alert('Aguarde a confirmação do pagamento PIX ou escaneie o QR Code acima.');
+        } else {
+          Alert.alert('Pagamento pendente', 'Escaneie o QR Code acima para pagar.');
+        }
+        setConfirming(false);
+        return;
+      }
+
       const orderId = await addOrder(user?.uid, cleanUndefined({
         items,
         subtotal,
@@ -335,16 +354,12 @@ export default function CheckoutScreen({ navigation }) {
         shippingCompany: selectedOption?.company?.name || '',
         shippingCost,
         deliveryAddress: deliveryAddress || null,
+        status: tab === 'pix' ? 'Aguardando pagamento' : 'Pendente',
       }));
-      // Espelha o pedido na coleção /pedidos para o painel admin.
-      // Só roda para usuário logado com orderId válido.
+
       if (user?.uid && orderId) {
         try {
           const userProfile = await getUserProfile(user.uid);
-          console.log('[handleConfirm] userProfile:', JSON.stringify(userProfile));
-          // Garante o nome real do cliente: perfil → displayName → email → 'Cliente'.
-          // Evita que o pedido apareça como "Cliente" no painel admin (ex.: login Google
-          // não grava `name` em /users/{uid}).
           const profileForPedido = {
             ...(userProfile || {}),
             name: userProfile?.name || user.displayName || user.email || 'Cliente',
@@ -362,27 +377,25 @@ export default function CheckoutScreen({ navigation }) {
             shippingCost,
             deliveryAddress,
             paymentMethod: tab,
+            status: tab === 'pix' ? 'Aguardando pagamento' : 'Pendente',
           }), profileForPedido);
         } catch (e) {
           console.warn('[Checkout] addPedidoAdmin error', e);
         }
       }
+
       await decrementarEstoque(items);
+
       if (tab === 'pix') {
-        // Para PIX: mostra QR Code na tela — não navega ainda
-        setPixOrderId(orderId);
+        // Gera PIX e mostra QR na tela — não navega ainda
         await gerarPixReal(orderId);
-        setShowPixPayment(true);
-        clearCart();
-        // NÃO navega — aguarda o cliente confirmar que pagou
       } else {
-        // Cartão e boleto: navega direto para confirmação
+        // Cartão e boleto: navega direto
         clearCart();
-        navigation.navigate('OrderConfirmation', { orderId });
+        navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
       }
     } catch (e) {
-      console.warn('[Checkout] addOrder error', e);
-      navigation.navigate('OrderConfirmation', { orderId: null });
+      console.warn('[Checkout] error', e);
     } finally {
       setConfirming(false);
     }
@@ -422,135 +435,6 @@ export default function CheckoutScreen({ navigation }) {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-
-      {/* Modal PIX — exibido após confirmação, aguarda pagamento */}
-      <Modal
-        visible={showPixPayment}
-        transparent={false}
-        animationType="slide"
-      >
-        <SafeAreaView style={{ flex: 1, backgroundColor: C.cream }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border }}>
-            <Text style={{ flex: 1, fontSize: 18, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', textAlign: 'center' }}>
-              Pagar com PIX
-            </Text>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 24, alignItems: 'center', gap: 20 }}>
-            <Text style={{ fontSize: 14, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-              Escaneie o QR Code ou copie o código PIX abaixo e pague no seu banco
-            </Text>
-            {pixLoading ? (
-              <ActivityIndicator size="large" color={C.terra} style={{ marginVertical: 40 }} />
-            ) : pixData ? (
-              <>
-                {pixData.qr_code_base64 ? (
-                  <View style={{ width: 200, height: 200, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-                    <Image
-                      source={{ uri: `data:image/png;base64,${pixData.qr_code_base64}` }}
-                      style={{ width: 190, height: 190 }}
-                      resizeMode="contain"
-                    />
-                  </View>
-                ) : null}
-                <TouchableOpacity
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.chip, borderRadius: 12, padding: 14, alignSelf: 'stretch' }}
-                  onPress={copiarPix}
-                >
-                  <Text style={{ flex: 1, fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular' }} numberOfLines={3}>
-                    {pixData.qr_code}
-                  </Text>
-                  <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={pixCopied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
-                  </View>
-                </TouchableOpacity>
-                {pixCopied && (
-                  <Text style={{ fontSize: 13, color: '#2e7d32', fontFamily: 'WorkSans_600SemiBold' }}>
-                    ✓ Código copiado!
-                  </Text>
-                )}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="time-outline" size={14} color={C.terra} />
-                  <Text style={{ fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' }}>
-                    PIX válido por <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{mmss}</Text>
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <Text style={{ fontSize: 13, color: '#c0392b', fontFamily: 'WorkSans_500Medium', textAlign: 'center' }}>
-                Erro ao gerar PIX. Tente novamente.
-              </Text>
-            )}
-          </ScrollView>
-          <View style={{ padding: 20, paddingBottom: 32, gap: 12 }}>
-            {paymentStatus === 'approved' ? (
-              <View style={{ alignItems: 'center', gap: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#e8f5e9', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
-                  <Ionicons name="checkmark-circle" size={22} color="#2e7d32" />
-                  <Text style={{ fontSize: 15, color: '#2e7d32', fontFamily: 'PlusJakartaSans_700Bold' }}>
-                    Pagamento confirmado!
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}
-                  onPress={() => {
-                    if (pollingInterval) clearInterval(pollingInterval);
-                    setShowPixPayment(false);
-                    navigation.navigate('OrderConfirmation', { orderId: pixOrderId, paymentStatus });
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                    Ver meu pedido →
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : paymentStatus === 'rejected' ? (
-              <View style={{ alignItems: 'center', gap: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fdecea', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
-                  <Ionicons name="close-circle" size={22} color="#c0392b" />
-                  <Text style={{ fontSize: 14, color: '#c0392b', fontFamily: 'WorkSans_600SemiBold' }}>
-                    Pagamento não realizado
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}
-                  onPress={() => {
-                    if (pollingInterval) clearInterval(pollingInterval);
-                    setShowPixPayment(false);
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                    Tentar novamente
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-                  <ActivityIndicator size="small" color={C.terra} />
-                  <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_500Medium' }}>
-                    Aguardando pagamento...
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' }}
-                  onPress={() => {
-                    if (pollingInterval) clearInterval(pollingInterval);
-                    setShowPixPayment(false);
-                    navigation.navigate('OrderConfirmation', { orderId: pixOrderId, paymentStatus });
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                    Já paguei ✓
-                  </Text>
-                </TouchableOpacity>
-                <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-                  O status atualiza automaticamente após o pagamento
-                </Text>
-              </>
-            )}
-          </View>
-        </SafeAreaView>
       </Modal>
 
       {/* Header */}
@@ -694,44 +578,58 @@ export default function CheckoutScreen({ navigation }) {
           </View>
           {tab === 'pix' && (
             <View style={styles.pixWrap}>
-              {pixLoading ? (
-                <ActivityIndicator size="large" color={C.terra} />
-              ) : pixData ? (
+              {pixGenerated && pixData ? (
                 <>
-                  {pixData.qr_code_base64 ? (
-                    <View style={styles.qrCode}>
-                      <Image
-                        source={{ uri: `data:image/png;base64,${pixData.qr_code_base64}` }}
-                        style={{ width: 130, height: 130 }}
-                        resizeMode="contain"
-                      />
+                  {paymentStatus === 'approved' ? (
+                    <View style={{ alignItems: 'center', gap: 10, width: '100%' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#e8f5e9', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
+                        <Ionicons name="checkmark-circle" size={22} color="#2e7d32" />
+                        <Text style={{ fontSize: 15, color: '#2e7d32', fontFamily: 'PlusJakartaSans_700Bold' }}>
+                          Pagamento confirmado!
+                        </Text>
+                      </View>
+                    </View>
+                  ) : paymentStatus === 'rejected' ? (
+                    <View style={{ alignItems: 'center', gap: 10, width: '100%' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fdecea', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
+                        <Ionicons name="close-circle" size={22} color="#c0392b" />
+                        <Text style={{ fontSize: 14, color: '#c0392b', fontFamily: 'WorkSans_600SemiBold' }}>
+                          PIX expirado ou rejeitado
+                        </Text>
+                      </View>
                     </View>
                   ) : (
-                    <View style={styles.qrCode}>
-                      <Text style={styles.qrText}>QR Code</Text>
-                    </View>
+                    <>
+                      {pixData.qr_code_base64 ? (
+                        <View style={styles.qrCode}>
+                          <Image
+                            source={{ uri: `data:image/png;base64,${pixData.qr_code_base64}` }}
+                            style={{ width: 130, height: 130 }}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      ) : null}
+                      <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+                        Escaneie ou copie o código abaixo
+                      </Text>
+                      <TouchableOpacity style={styles.pixCopy} onPress={copiarPix}>
+                        <Text style={styles.pixCode} numberOfLines={2}>{pixData.qr_code}</Text>
+                        <View style={styles.copyBtn}>
+                          <Ionicons name={pixCopied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
+                        </View>
+                      </TouchableOpacity>
+                      {pixCopied && (
+                        <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium' }}>✓ Código copiado!</Text>
+                      )}
+                      <View style={styles.countdownRow}>
+                        <ActivityIndicator size="small" color={C.terra} />
+                        <Text style={styles.countdownText}>Aguardando pagamento... <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{mmss}</Text></Text>
+                      </View>
+                    </>
                   )}
-                  <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-                    Escaneie o QR Code ou copie o código abaixo
-                  </Text>
-                  <TouchableOpacity style={styles.pixCopy} onPress={copiarPix}>
-                    <Text style={styles.pixCode} numberOfLines={2}>{pixData.qr_code}</Text>
-                    <View style={styles.copyBtn}>
-                      <Ionicons name={pixCopied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
-                    </View>
-                  </TouchableOpacity>
-                  {pixCopied && (
-                    <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium' }}>
-                      ✓ Código copiado!
-                    </Text>
-                  )}
-                  <View style={styles.countdownRow}>
-                    <Ionicons name="time-outline" size={14} color={C.terra} />
-                    <Text style={styles.countdownText}>
-                      PIX válido por <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{mmss}</Text>
-                    </Text>
-                  </View>
                 </>
+              ) : pixLoading ? (
+                <ActivityIndicator size="large" color={C.terra} />
               ) : (
                 <View style={{ alignItems: 'center', gap: 10, paddingVertical: 16 }}>
                   <Ionicons name="qr-code-outline" size={48} color={C.muted} />
@@ -838,7 +736,11 @@ export default function CheckoutScreen({ navigation }) {
         >
           {confirming
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.confirmText}>Confirmar Pagamento · {fmt(checkoutTotal)}</Text>
+            : <Text style={styles.confirmText}>
+                {tab === 'pix' && pixGenerated
+                  ? paymentStatus === 'approved' ? 'Pagamento confirmado ✓' : 'Aguardando pagamento PIX...'
+                  : `Confirmar Pagamento · ${fmt(checkoutTotal)}`}
+              </Text>
           }
         </TouchableOpacity>
         <View style={styles.secureHint}>

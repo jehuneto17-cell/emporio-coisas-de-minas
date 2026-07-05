@@ -156,6 +156,41 @@ export default function OrderTrackingScreen({ navigation, route }) {
           )}
         </View>
 
+        {/* PIX pendente — exibe QR Code salvo para o cliente pagar */}
+        {(order?.pixQrCode || order?.pixStatus === 'pending') && order?.pixStatus !== 'approved' && (
+          <View style={[styles.card, { alignItems: 'center', gap: 14 }]}>
+            <Text style={[styles.cardTitle, { textAlign: 'center' }]}>💳 Pagar com PIX</Text>
+            <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+              Seu pedido aguarda pagamento. Escaneie o QR Code ou copie o código.
+            </Text>
+            {order?.pixQrCodeBase64 ? (
+              <View style={{ width: 180, height: 180, borderRadius: 12, borderWidth: 1, borderColor: C.border, overflow: 'hidden', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                <Image
+                  source={{ uri: `data:image/png;base64,${order.pixQrCodeBase64}` }}
+                  style={{ width: 170, height: 170 }}
+                  resizeMode="contain"
+                />
+              </View>
+            ) : null}
+            {order?.pixQrCode ? (
+              <TouchableOpacity
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: C.chip, borderRadius: 12, padding: 14, alignSelf: 'stretch' }}
+                onPress={() => handleCopy(order.pixQrCode)}
+              >
+                <Text style={{ flex: 1, fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular' }} numberOfLines={3}>
+                  {order.pixQrCode}
+                </Text>
+                <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={copied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
+                </View>
+              </TouchableOpacity>
+            ) : null}
+            <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+              ⚠️ O QR Code PIX expira em 30 minutos após a criação do pedido.
+            </Text>
+          </View>
+        )}
+
         {/* Produtos do pedido */}
         {items.length > 0 && (
           <View style={styles.card}>

@@ -145,6 +145,40 @@ export async function addOrder(uid, orderData) {
   return orderId;
 }
 
+export async function savePixData(uid, orderId, pixData) {
+  try {
+    await setDoc(doc(db, 'users', uid, 'orders', orderId), {
+      pixId: pixData.id,
+      pixQrCode: pixData.qr_code,
+      pixQrCodeBase64: pixData.qr_code_base64,
+      pixStatus: 'pending',
+    }, { merge: true });
+    // Espelha no /pedidos também
+    await setDoc(doc(db, 'pedidos', orderId), {
+      pixId: pixData.id,
+      pixStatus: 'pending',
+      status: 'Aguardando pagamento',
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[savePixData]', e.message);
+  }
+}
+
+export async function updatePixStatus(uid, orderId, status) {
+  try {
+    await setDoc(doc(db, 'users', uid, 'orders', orderId), {
+      pixStatus: status,
+      status: status === 'approved' ? 'Pago' : 'Aguardando pagamento',
+    }, { merge: true });
+    await setDoc(doc(db, 'pedidos', orderId), {
+      pixStatus: status,
+      status: status === 'approved' ? 'Pago' : 'Aguardando pagamento',
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[updatePixStatus]', e.message);
+  }
+}
+
 export async function getPedidoAdmin(orderId) {
   try {
     const snap = await getDoc(doc(db, 'pedidos', orderId));

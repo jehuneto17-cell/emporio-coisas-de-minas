@@ -161,6 +161,15 @@ export default function MyOrdersScreen({ navigation }) {
 
         {/* Track link + Avaliar */}
         <View style={styles.trackRow}>
+          {(normalizeStatus(o.status) === 'aguardando pagamento' || o.pixQrCode) && (
+            <TouchableOpacity
+              style={[styles.reviewBtn, { backgroundColor: '#009ee3' }]}
+              onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
+            >
+              <Ionicons name="qr-code-outline" size={13} color="#fff" />
+              <Text style={styles.reviewBtnText}>Pagar PIX</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.trackBtn}
             onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
