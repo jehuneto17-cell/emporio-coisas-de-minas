@@ -36,6 +36,7 @@ function getStatusColor(status) {
   const s = normalizeStatus(status);
   if (isEntregue(s)) return C.greenFg;
   if (isTransito(s)) return C.terra;
+  if (s.includes('aguardando')) return '#009ee3';
   return C.ochre;
 }
 
@@ -46,6 +47,7 @@ function getStatusLabel(status) {
   if (isTransito(s)) return 'Em Transporte';
   if (s === 'preparando') return 'Preparando';
   if (s === 'pendente') return 'Pendente';
+  if (s.includes('aguardando')) return 'Aguardando Pagamento';
   return status; // estado desconhecido — exibe o texto original
 }
 
@@ -161,7 +163,12 @@ export default function MyOrdersScreen({ navigation }) {
 
         {/* Track link + Avaliar */}
         <View style={styles.trackRow}>
-          {(normalizeStatus(o.status) === 'aguardando pagamento' || o.pixQrCode) && (
+          {(o.paymentMethod === 'pix' && o.pixStatus !== 'approved' && (
+            normalizeStatus(o.status).includes('aguardando') ||
+            normalizeStatus(o.status) === 'pendente' ||
+            o.pixQrCode ||
+            o.pixId
+          )) && (
             <TouchableOpacity
               style={[styles.reviewBtn, { backgroundColor: '#009ee3' }]}
               onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
