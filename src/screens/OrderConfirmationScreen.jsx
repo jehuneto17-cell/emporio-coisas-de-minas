@@ -25,7 +25,7 @@ function formatDate(ts) {
 const PAY_LABELS = { card: 'Cartão', boleto: 'Boleto', pix: 'Pix' };
 
 export default function OrderConfirmationScreen({ navigation, route }) {
-  const { orderId } = route.params ?? {};
+  const { orderId, paymentStatus } = route.params ?? {};
   const { user } = useAuth();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
   const displayNum    = order           ? `#${orderId.slice(-6)}`    : '#1043';
   const displayDate   = order           ? formatDate(order.createdAt): '24 Mai 2026';
   const displayMethod = PAY_LABELS[order?.paymentMethod] ?? 'Pix';
+  const addr = order?.deliveryAddress || null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -90,7 +91,11 @@ export default function OrderConfirmationScreen({ navigation, route }) {
             </View>
           </View>
           <Text style={styles.successTitle}>Pedido Confirmado!</Text>
-          <Text style={styles.successSub}>Seu pagamento foi aprovado com sucesso</Text>
+          <Text style={styles.successSub}>
+            {paymentStatus === 'approved' || order?.paymentMethod !== 'pix'
+              ? 'Seu pagamento foi aprovado com sucesso'
+              : 'Seu pedido foi registrado — aguardando confirmação do PIX'}
+          </Text>
         </View>
 
         {/* Order Number */}
@@ -156,14 +161,29 @@ export default function OrderConfirmationScreen({ navigation, route }) {
                 <Ionicons name="car-outline" size={16} color={C.brown} />
                 <Text style={styles.cardTitle}>Entrega</Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('OrderTracking')} style={styles.trackBtn}>
+              <TouchableOpacity onPress={() => navigation.navigate('OrderTracking', { orderId })} style={styles.trackBtn}>
                 <Text style={styles.trackBtnText}>Rastrear</Text>
                 <Ionicons name="arrow-forward" size={12} color={C.terra} />
               </TouchableOpacity>
             </View>
-            <Text style={styles.addrName}>João Silva</Text>
-            <Text style={styles.addrLine}>Rua das Flores, 123 — Apto 45</Text>
-            <Text style={styles.addrCity}>Itaú de Minas · MG</Text>
+            {addr ? (
+              <>
+                <Text style={styles.addrName}>{addr.label || 'Endereço de entrega'}</Text>
+                <Text style={styles.addrLine}>
+                  {addr.street
+                    ? `${addr.street}${addr.number ? ', ' + addr.number : ''}${addr.complement ? ' — ' + addr.complement : ''}`
+                    : '—'}
+                </Text>
+                <Text style={styles.addrCity}>
+                  {addr.city ? `${addr.city} · ${addr.state} · CEP ${addr.cep}` : ''}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.addrName}>Endereço de entrega</Text>
+                <Text style={styles.addrCity}>Endereço informado no checkout.</Text>
+              </>
+            )}
 
             {/* Timeline */}
             <View style={styles.timeline}>
@@ -192,10 +212,17 @@ export default function OrderConfirmationScreen({ navigation, route }) {
             <Text style={styles.payLabel}>Mercado Pago</Text>
             <View style={styles.payBadge}><Text style={styles.payBadgeText}>{displayMethod}</Text></View>
             <View style={{ flex: 1 }} />
-            <View style={styles.approvedBadge}>
-              <Text style={styles.approvedText}>Aprovado</Text>
-              <Ionicons name="checkmark" size={11} color={C.greenFg} />
-            </View>
+            {paymentStatus === 'approved' || order?.paymentMethod !== 'pix' ? (
+              <View style={styles.approvedBadge}>
+                <Text style={styles.approvedText}>Aprovado</Text>
+                <Ionicons name="checkmark" size={11} color={C.greenFg} />
+              </View>
+            ) : (
+              <View style={[styles.approvedBadge, { backgroundColor: '#fff3e0' }]}>
+                <Text style={[styles.approvedText, { color: '#f57c00' }]}>Aguardando</Text>
+                <Ionicons name="time-outline" size={11} color="#f57c00" />
+              </View>
+            )}
           </View>
         </View>
 
@@ -204,7 +231,7 @@ export default function OrderConfirmationScreen({ navigation, route }) {
           <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate('Main')}>
             <Text style={styles.primaryBtnText}>Continuar Comprando</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('Main')}>
+          <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('MyOrders')}>
             <Text style={styles.secondaryBtnText}>Ver Meus Pedidos</Text>
           </TouchableOpacity>
         </View>

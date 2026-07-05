@@ -26,6 +26,10 @@ const CARTAO_API_URL = typeof window !== 'undefined' && window.location.hostname
   ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-cartao'
   : 'http://localhost:8081/api/criar-pagamento-cartao';
 
+const VERIFICAR_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? 'https://emporio-coisas-de-minas.vercel.app/api/verificar-pagamento'
+  : 'http://localhost:8081/api/verificar-pagamento';
+
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
   const { items, totalItems, subtotal, discount, coupon, couponApplied, clearCart } = useCart();
@@ -51,6 +55,8 @@ export default function CheckoutScreen({ navigation }) {
   const [pixCopied, setPixCopied] = useState(false);
   const [pixOrderId, setPixOrderId] = useState(null);
   const [showPixPayment, setShowPixPayment] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState('pending'); // pending | approved | rejected
+  const [pollingInterval, setPollingInterval] = useState(null);
 
   // Cartão
   const [cardNumber, setCardNumber] = useState('');
@@ -234,12 +240,14 @@ export default function CheckoutScreen({ navigation }) {
 
   async function gerarPixReal(orderId) {
     setPixLoading(true);
+    setPaymentStatus('pending');
     try {
+      const total = checkoutTotal > 0 ? checkoutTotal : 1; // Garante mínimo de R$1
       const res = await fetch(PIX_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          total: checkoutTotal,
+          total,
           email: user?.email || 'cliente@emporiominas.com.br',
           orderId,
           description: `Pedido #${orderId.slice(-6)} — Empório Coisas de Minas`,
@@ -248,6 +256,25 @@ export default function CheckoutScreen({ navigation }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar PIX');
       setPixData(data);
+      // Inicia polling a cada 5 segundos para verificar se o cliente pagou
+      if (data.id) {
+        const interval = setInterval(async () => {
+          try {
+            const vRes = await fetch(`${VERIFICAR_API_URL}?paymentId=${data.id}`);
+            const vData = await vRes.json();
+            if (vData.status === 'approved') {
+              setPaymentStatus('approved');
+              clearInterval(interval);
+            } else if (vData.status === 'rejected' || vData.status === 'cancelled') {
+              setPaymentStatus('rejected');
+              clearInterval(interval);
+            }
+          } catch (e) {
+            console.warn('[PIX polling]', e.message);
+          }
+        }, 5000);
+        setPollingInterval(interval);
+      }
     } catch (e) {
       console.warn('[PIX]', e.message);
       if (Platform.OS === 'web') window.alert('Erro ao gerar PIX: ' + e.message);
@@ -456,20 +483,72 @@ export default function CheckoutScreen({ navigation }) {
             )}
           </ScrollView>
           <View style={{ padding: 20, paddingBottom: 32, gap: 12 }}>
-            <TouchableOpacity
-              style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' }}
-              onPress={() => {
-                setShowPixPayment(false);
-                navigation.navigate('OrderConfirmation', { orderId: pixOrderId });
-              }}
-            >
-              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
-                Já paguei ✓
-              </Text>
-            </TouchableOpacity>
-            <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-              O pedido já foi registrado. Confirme após realizar o pagamento.
-            </Text>
+            {paymentStatus === 'approved' ? (
+              <View style={{ alignItems: 'center', gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#e8f5e9', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
+                  <Ionicons name="checkmark-circle" size={22} color="#2e7d32" />
+                  <Text style={{ fontSize: 15, color: '#2e7d32', fontFamily: 'PlusJakartaSans_700Bold' }}>
+                    Pagamento confirmado!
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}
+                  onPress={() => {
+                    if (pollingInterval) clearInterval(pollingInterval);
+                    setShowPixPayment(false);
+                    navigation.navigate('OrderConfirmation', { orderId: pixOrderId, paymentStatus });
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                    Ver meu pedido →
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : paymentStatus === 'rejected' ? (
+              <View style={{ alignItems: 'center', gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fdecea', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
+                  <Ionicons name="close-circle" size={22} color="#c0392b" />
+                  <Text style={{ fontSize: 14, color: '#c0392b', fontFamily: 'WorkSans_600SemiBold' }}>
+                    Pagamento não realizado
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}
+                  onPress={() => {
+                    if (pollingInterval) clearInterval(pollingInterval);
+                    setShowPixPayment(false);
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                    Tentar novamente
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                  <ActivityIndicator size="small" color={C.terra} />
+                  <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_500Medium' }}>
+                    Aguardando pagamento...
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={{ height: 52, borderRadius: 12, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' }}
+                  onPress={() => {
+                    if (pollingInterval) clearInterval(pollingInterval);
+                    setShowPixPayment(false);
+                    navigation.navigate('OrderConfirmation', { orderId: pixOrderId, paymentStatus });
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' }}>
+                    Já paguei ✓
+                  </Text>
+                </TouchableOpacity>
+                <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+                  O status atualiza automaticamente após o pagamento
+                </Text>
+              </>
+            )}
           </View>
         </SafeAreaView>
       </Modal>
