@@ -50,7 +50,16 @@ export default function SignUpScreen({ navigation }) {
 
   async function handleGoogleSignIn() {
     setError('');
-    await promptAsync();
+    if (!request) {
+      setError('Google Auth não está pronto. Aguarde e tente novamente.');
+      return;
+    }
+    try {
+      await promptAsync();
+    } catch (e) {
+      console.warn('[Google SignUp] promptAsync error:', e);
+      setError('Erro ao abrir login com Google. Tente novamente.');
+    }
   }
 
   async function handleSignUp() {
@@ -149,7 +158,7 @@ export default function SignUpScreen({ navigation }) {
           </View>
 
           <View style={styles.socialRow}>
-            <SocialBtn label="Google" icon="logo-google" onPress={handleGoogleSignIn} loading={loadingGoogle} />
+            <SocialBtn label="Google" icon="logo-google" onPress={handleGoogleSignIn} loading={loadingGoogle} disabled={!request} />
             <SocialBtn
               label="Facebook"
               icon="logo-facebook"
@@ -188,12 +197,12 @@ function Field({ label, icon, placeholder, value, onChangeText, secureTextEntry,
   );
 }
 
-function SocialBtn({ label, icon, onPress, loading }) {
+function SocialBtn({ label, icon, onPress, loading, disabled }) {
   return (
     <TouchableOpacity
-      style={[styles.socialBtn, loading && { opacity: 0.6 }]}
+      style={[styles.socialBtn, (loading || disabled) && { opacity: 0.5 }]}
       onPress={onPress}
-      disabled={loading}
+      disabled={loading || disabled}
     >
       {loading
         ? <ActivityIndicator size="small" color={C.ink} />
