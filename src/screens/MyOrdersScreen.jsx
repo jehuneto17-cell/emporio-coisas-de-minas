@@ -11,10 +11,11 @@ import { useAuth } from '../context/AuthContext';
 import { getUserOrders } from '../services/firestore';
 
 const FILTERS = [
-  { key: 'todos',      label: 'Todos' },
-  { key: 'pendente',   label: 'Pendente' },
-  { key: 'transito',   label: 'Em Transporte' },
-  { key: 'entregue',   label: 'Entregue' },
+  { key: 'todos',        label: 'Todos' },
+  { key: 'aguardando',   label: '⏳ Aguardando PIX' },
+  { key: 'pendente',     label: 'Pendente' },
+  { key: 'transito',     label: 'Em Transporte' },
+  { key: 'entregue',     label: 'Entregue' },
 ];
 
 // Normaliza status para comparação resiliente: minúsculas + sem acento.
@@ -37,6 +38,7 @@ function getStatusColor(status) {
   if (isEntregue(s)) return C.greenFg;
   if (isTransito(s)) return C.terra;
   if (s.includes('aguardando')) return '#009ee3';
+  if (s === 'pago') return C.greenFg;
   return C.ochre;
 }
 
@@ -47,12 +49,21 @@ function getStatusLabel(status) {
   if (isTransito(s)) return 'Em Transporte';
   if (s === 'preparando') return 'Preparando';
   if (s === 'pendente') return 'Pendente';
-  if (s.includes('aguardando')) return 'Aguardando Pagamento';
+  if (s.includes('aguardando')) return 'Aguardando PIX';
+  if (s === 'pago') return 'Pago';
   return status; // estado desconhecido — exibe o texto original
 }
 
 function matchesFilter(order, key) {
   if (key === 'todos') return true;
+  if (key === 'aguardando') {
+    return order.paymentMethod === 'pix' && order.pixStatus !== 'approved' && (
+      normalizeStatus(order.status).includes('aguardando') ||
+      normalizeStatus(order.status) === 'pendente' ||
+      !!order.pixQrCode ||
+      !!order.pixId
+    );
+  }
   const s = normalizeStatus(order.status) || 'pendente';
   if (key === 'entregue') return isEntregue(s);
   if (key === 'transito') return isTransito(s);
@@ -163,12 +174,12 @@ export default function MyOrdersScreen({ navigation }) {
 
         {/* Track link + Avaliar */}
         <View style={styles.trackRow}>
-          {(o.paymentMethod === 'pix' && o.pixStatus !== 'approved' && (
+          {o.paymentMethod === 'pix' && o.pixStatus !== 'approved' && (
             normalizeStatus(o.status).includes('aguardando') ||
             normalizeStatus(o.status) === 'pendente' ||
             o.pixQrCode ||
             o.pixId
-          )) && (
+          ) && (
             <TouchableOpacity
               style={[styles.reviewBtn, { backgroundColor: '#009ee3' }]}
               onPress={() => navigation.navigate('OrderTracking', { orderId: o.id })}
