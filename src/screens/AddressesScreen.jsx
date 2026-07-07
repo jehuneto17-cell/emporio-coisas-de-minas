@@ -15,8 +15,15 @@ import {
 const LABELS = ['Casa', 'Trabalho', 'Outro'];
 const EMPTY_FORM = {
   label: 'Casa', cep: '', street: '', number: '',
-  complement: '', neighborhood: '', city: '', state: 'MG',
+  complement: '', neighborhood: '', city: '', state: 'MG', cpf: '',
 };
+
+function formatCPF(v) {
+  return v.replace(/\D/g, '').slice(0, 11)
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
 
 function Field({ label, value, onChangeText, placeholder, keyboardType, editable = true, loading, rightIcon }) {
   const [focused, setFocused] = useState(false);
@@ -158,6 +165,12 @@ export default function AddressesScreen({ navigation }) {
     }
     if (!form.city.trim()) {
       Alert.alert('Atenção', 'Informe a cidade.');
+      return;
+    }
+    if (form.cpf && form.cpf.replace(/\D/g, '').length !== 11) {
+      Platform.OS === 'web'
+        ? window.alert('CPF inválido. Digite os 11 dígitos.')
+        : Alert.alert('CPF inválido', 'Digite os 11 dígitos.');
       return;
     }
     setSaving(true);
@@ -383,6 +396,17 @@ export default function AddressesScreen({ navigation }) {
                     <Field label="Estado" value={form.state} onChangeText={setField('state')} placeholder="UF" />
                   </View>
                 </View>
+
+                <Field
+                  label="CPF do destinatário"
+                  value={form.cpf || ''}
+                  onChangeText={(v) => setForm(f => ({ ...f, cpf: formatCPF(v) }))}
+                  placeholder="000.000.000-00"
+                  keyboardType="numeric"
+                />
+                <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', marginTop: -8, marginBottom: 4 }}>
+                  Necessário para envio pelos Correios e transportadoras
+                </Text>
 
                 <TouchableOpacity
                   style={[styles.saveBtn, saving && { opacity: 0.6 }]}
