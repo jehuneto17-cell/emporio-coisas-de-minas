@@ -84,11 +84,12 @@ export async function getProductById(id) {
   return all.find((p) => p.id === id) ?? null;
 }
 
-export async function createUserProfile(uid, { name, email, phone }) {
+export async function createUserProfile(uid, { name, email, phone, cpf }) {
   await setDoc(doc(db, 'users', uid), {
     name,
     email,
     phone: phone || '',
+    cpf: cpf || '',
     createdAt: serverTimestamp(),
   });
 }

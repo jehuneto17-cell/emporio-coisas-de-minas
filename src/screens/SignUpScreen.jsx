@@ -15,6 +15,7 @@ export default function SignUpScreen({ navigation }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [cpf, setCpf] = useState('');
   const [pwd, setPwd] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [show1, setShow1] = useState(false);
@@ -22,6 +23,13 @@ export default function SignUpScreen({ navigation }) {
   const [focus, setFocus] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  function formatCPF(v) {
+    return v.replace(/\D/g, '').slice(0, 11)
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  }
 
   async function handleSignUp() {
     if (!name.trim() || !email.trim() || !pwd) {
@@ -36,6 +44,10 @@ export default function SignUpScreen({ navigation }) {
       setError('As senhas não coincidem.');
       return;
     }
+    if (cpf.replace(/\D/g, '').length !== 11) {
+      setError('CPF inválido. Digite os 11 dígitos.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
@@ -44,6 +56,7 @@ export default function SignUpScreen({ navigation }) {
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
+        cpf: cpf.trim(),
       });
       navigation.replace('Main');
     } catch (e) {
@@ -84,6 +97,13 @@ export default function SignUpScreen({ navigation }) {
           <Field label="E-mail" icon="mail-outline" placeholder="seu@email.com" value={email} onChangeText={setEmail} keyboardType="email-address" focused={focus === 'email'} onFocus={() => setFocus('email')} onBlur={() => setFocus('')} />
           <View style={{ height: 12 }} />
           <Field label="WhatsApp / Telefone" icon="call-outline" placeholder="(35) 99999-9999" value={phone} onChangeText={setPhone} keyboardType="phone-pad" focused={focus === 'phone'} onFocus={() => setFocus('phone')} onBlur={() => setFocus('')} />
+          <View style={{ height: 12 }} />
+          <Field
+            label="CPF" icon="id-card-outline" placeholder="000.000.000-00"
+            value={cpf} onChangeText={(v) => setCpf(formatCPF(v))}
+            keyboardType="numeric"
+            focused={focus === 'cpf'} onFocus={() => setFocus('cpf')} onBlur={() => setFocus('')}
+          />
           <View style={{ height: 12 }} />
           <Field
             label="Criar senha" icon="lock-closed-outline" placeholder="mínimo 8 caracteres"
