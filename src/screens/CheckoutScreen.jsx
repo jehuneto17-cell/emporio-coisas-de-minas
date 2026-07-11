@@ -70,6 +70,8 @@ export default function CheckoutScreen({ navigation }) {
 
   // Taxa de acréscimo para pagamento com cartão (lida do Firestore; padrão 3%)
   const [taxaCartao, setTaxaCartao] = useState(3.0);
+  const [boletoAtivo, setBoletoAtivo] = useState(false);
+  const [cartaoAtivo, setCartaoAtivo] = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -85,8 +87,10 @@ export default function CheckoutScreen({ navigation }) {
   // Busca a taxa de acréscimo do cartão configurada no painel admin
   useEffect(() => {
     getConfiguracoes().then((cfg) => {
-      if (cfg?.pagamento?.taxaCredito) {
+      if (cfg?.pagamento) {
         setTaxaCartao(parseFloat(cfg.pagamento.taxaCredito) || 3.0);
+        setCartaoAtivo(cfg.pagamento.cartaoAtivo !== false);
+        setBoletoAtivo(cfg.pagamento.boletoAtivo === true);
       }
     }).catch(() => {});
   }, []);
@@ -633,7 +637,7 @@ export default function CheckoutScreen({ navigation }) {
             <View style={styles.mpBadge}><Text style={styles.mpText}>MP</Text></View>
           </View>
           <View style={styles.payTabs}>
-            {['pix', 'card', 'boleto'].map((t) => (
+            {['pix', ...(cartaoAtivo ? ['card'] : []), ...(boletoAtivo ? ['boleto'] : [])].map((t) => (
               <TouchableOpacity key={t} onPress={() => { setTab(t); setCheckoutError(''); }}
                 style={[styles.payTab, tab === t && styles.payTabActive]}>
                 <Text style={[styles.payTabText, tab === t && styles.payTabTextActive]}>
