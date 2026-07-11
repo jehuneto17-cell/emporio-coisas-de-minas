@@ -231,6 +231,8 @@ export default function MyOrdersScreen({ navigation }) {
         contentContainerStyle={styles.chipsRow}
         style={{ flexGrow: 0 }}
         nestedScrollEnabled={true}
+        bounces={false}
+        decelerationRate="fast"
       >
         {FILTERS.map((f) => {
           const active = activeFilter === f.key;
@@ -314,7 +316,7 @@ const styles = StyleSheet.create({
   chipsRow: {
     flexDirection: 'row',
     paddingLeft: 16,
-    paddingRight: 16,
+    paddingRight: 32,
     paddingTop: 4,
     paddingBottom: 14,
     gap: 8,

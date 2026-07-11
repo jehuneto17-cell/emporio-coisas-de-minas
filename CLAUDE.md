@@ -545,6 +545,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **api/webhook-melhor-envio.js: endpoint webhook para receber notificações do Melhor Envio** (2026-07-06) — mapeia status (posted/in_transit/delivered) para status do app e atualiza /pedidos e /users/{uid}/orders automaticamente via Firebase Admin SDK.
 ✅ **MyOrdersScreen.jsx: ScrollView horizontal dos filtros corrigido para mobile web** (2026-07-11) — adicionado `flexGrow:0`, `flexShrink:0` nos chips e `fontSize` reduzido para caber na tela.
 ✅ **MyOrdersScreen.jsx: labels dos filtros simplificados e chips ainda mais compactos para caber na tela mobile** (2026-07-11) — labels encurtados ('⏳ Aguardando PIX'→'⏳ PIX', 'Em Transporte'→'Transporte') e chips reduzidos (`paddingHorizontal:10`, `height:32`, `fontSize:11`).
+✅ **MyOrdersScreen.jsx: ScrollView horizontal dos filtros corrigido com bounces=false e paddingRight=32 para permitir scroll até o último chip** (2026-07-11) — adicionadas props `bounces={false}` e `decelerationRate="fast"` no ScrollView e `paddingRight` do `chipsRow` aumentado para 32.
 
 ---
 
