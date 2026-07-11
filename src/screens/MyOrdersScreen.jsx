@@ -11,11 +11,11 @@ import { useAuth } from '../context/AuthContext';
 import { getUserOrders } from '../services/firestore';
 
 const FILTERS = [
-  { key: 'todos',        label: 'Todos' },
-  { key: 'aguardando',   label: '⏳ Aguardando PIX' },
-  { key: 'pendente',     label: 'Pendente' },
-  { key: 'transito',     label: 'Em Transporte' },
-  { key: 'entregue',     label: 'Entregue' },
+  { key: 'todos',      label: 'Todos' },
+  { key: 'aguardando', label: '⏳ PIX' },
+  { key: 'pendente',   label: 'Pendente' },
+  { key: 'transito',   label: 'Transporte' },
+  { key: 'entregue',   label: 'Entregue' },
 ];
 
 // Normaliza status para comparação resiliente: minúsculas + sem acento.
@@ -322,8 +322,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chip: {
-    paddingHorizontal: 12,
-    height: 34,
+    paddingHorizontal: 10,
+    height: 32,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -338,12 +338,13 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontFamily: 'WorkSans_500Medium',
-    fontSize: 12,
+    fontSize: 11,
     color: C.muted,
   },
   chipTextActive: {
     color: C.cream,
     fontFamily: 'PlusJakartaSans_600SemiBold',
+    fontSize: 11,
   },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
