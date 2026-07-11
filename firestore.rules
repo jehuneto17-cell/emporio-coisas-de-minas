@@ -56,6 +56,16 @@ service cloud.firestore {
     }
 
 
+    // ── /configuracoes ────────────────────────────────────────────────────────
+    // Leitura pública — o app precisa ler config da loja (ex.: taxa do cartão).
+    // Escrita bloqueada no client; gerenciada pelo painel admin.
+
+    match /configuracoes/{docId} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
+
     // ── /produtos ─────────────────────────────────────────────────────────────
     // Leitura pública — catálogo visível sem login (app de navegação aberta).
     // Apenas admin pode criar, editar e deletar produtos.

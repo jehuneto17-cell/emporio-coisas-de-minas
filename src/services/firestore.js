@@ -481,6 +481,27 @@ export async function getCupons() {
   }
 }
 
+// Lê as configurações da loja salvas pelo painel admin na coleção /configuracoes.
+// O doc 'loja' é mesclado na raiz; os demais docs (ex.: 'pagamento') viram chaves
+// pelo próprio id — espelha o comportamento de DB.getConfiguracoes() do admin.
+export async function getConfiguracoes() {
+  try {
+    const snap = await getDocs(collection(db, 'configuracoes'));
+    const result = {};
+    snap.docs.forEach((d) => {
+      if (d.id === 'loja') {
+        Object.assign(result, d.data());
+      } else {
+        result[d.id] = d.data();
+      }
+    });
+    return result;
+  } catch (e) {
+    console.warn('[getConfiguracoes]', e);
+    return {};
+  }
+}
+
 export async function submitReview(productId, uid, userName, rating, comment) {
   try {
     await setDoc(doc(db, 'produtos', productId, 'reviews', uid), {

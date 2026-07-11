@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque, savePixData, updatePixStatus } from '../services/firestore';
+import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque, savePixData, updatePixStatus, getConfiguracoes } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
@@ -68,6 +68,9 @@ export default function CheckoutScreen({ navigation }) {
   const [checkoutError, setCheckoutError] = useState('');
   const [cardLoading, setCardLoading] = useState(false);
 
+  // Taxa de acréscimo para pagamento com cartão (lida do Firestore; padrão 3%)
+  const [taxaCartao, setTaxaCartao] = useState(3.0);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setShowAuthModal(true);
@@ -77,6 +80,15 @@ export default function CheckoutScreen({ navigation }) {
   useEffect(() => {
     const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  // Busca a taxa de acréscimo do cartão configurada no painel admin
+  useEffect(() => {
+    getConfiguracoes().then((cfg) => {
+      if (cfg?.pagamento?.taxaCredito) {
+        setTaxaCartao(parseFloat(cfg.pagamento.taxaCredito) || 3.0);
+      }
+    }).catch(() => {});
   }, []);
 
   // Carrega endereço padrão do usuário
@@ -225,7 +237,8 @@ export default function CheckoutScreen({ navigation }) {
   const selectedOption = shippingOptions.find((o) => o.id === method) || null;
   const shippingCost = selectedOption ? parseFloat(selectedOption.price) : 0;
   const effectiveShippingCost = deliveryMode === 'pickup' ? 0 : shippingCost;
-  const checkoutTotal = Math.max(0, subtotal - discount + effectiveShippingCost);
+  const cardSurcharge = tab === 'card' ? (subtotal - discount) * (taxaCartao / 100) : 0;
+  const checkoutTotal = Math.max(0, subtotal - discount + effectiveShippingCost + cardSurcharge);
   const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
   function cleanUndefined(obj) {
@@ -749,6 +762,15 @@ export default function CheckoutScreen({ navigation }) {
                   />
                 </View>
               </View>
+              {tab === 'card' && cardSurcharge > 0 && (
+                <View style={{ backgroundColor: '#fff3e0', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 }}>
+                  <Ionicons name="information-circle-outline" size={16} color="#f57c00" />
+                  <Text style={{ flex: 1, fontSize: 12, color: '#7a4a00', fontFamily: 'WorkSans_400Regular', lineHeight: 17 }}>
+                    Acréscimo de {taxaCartao}% para pagamento com cartão ({fmt(cardSurcharge)}).
+                    Este valor cobre a taxa da operadora.
+                  </Text>
+                </View>
+              )}
               {cardError ? (
                 <Text style={{ fontSize: 12, color: '#c0392b', fontFamily: 'WorkSans_500Medium' }}>{cardError}</Text>
               ) : null}
@@ -772,6 +794,12 @@ export default function CheckoutScreen({ navigation }) {
             label={shippingLabel}
             value={deliveryMode === 'pickup' ? 'Grátis' : loadingShipping ? '…' : effectiveShippingCost > 0 ? fmt(effectiveShippingCost) : '—'}
           />
+          {tab === 'card' && cardSurcharge > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Acréscimo cartão ({taxaCartao}%)</Text>
+              <Text style={[styles.summaryValue, { color: '#f57c00' }]}>+ {fmt(cardSurcharge)}</Text>
+            </View>
+          )}
           {couponApplied && <SummaryRow label="Desconto" value={`− ${fmt(discount)}`} highlight />}
           <View style={styles.summaryDivider} />
           <View style={styles.totalRow}>
