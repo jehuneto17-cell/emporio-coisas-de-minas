@@ -13,6 +13,7 @@ import { getUserOrders } from '../services/firestore';
 const FILTERS = [
   { key: 'todos',      label: 'Todos' },
   { key: 'aguardando', label: '⏳ Aguardando PIX' },
+  { key: 'pago',       label: '✅ Pago' },
   { key: 'pendente',   label: 'Pendente' },
   { key: 'transito',   label: 'Em Transporte' },
   { key: 'entregue',   label: 'Entregue' },
@@ -63,6 +64,10 @@ function matchesFilter(order, key) {
       !!order.pixQrCode ||
       !!order.pixId
     );
+  }
+  if (key === 'pago') {
+    const s = normalizeStatus(order.status);
+    return s === 'pago';
   }
   const s = normalizeStatus(order.status) || 'pendente';
   if (key === 'entregue') return isEntregue(s);
