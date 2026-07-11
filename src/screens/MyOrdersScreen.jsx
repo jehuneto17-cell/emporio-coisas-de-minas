@@ -2,7 +2,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, FlatList, ActivityIndicator, Image,
+  FlatList, ActivityIndicator, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,9 +12,9 @@ import { getUserOrders } from '../services/firestore';
 
 const FILTERS = [
   { key: 'todos',      label: 'Todos' },
-  { key: 'aguardando', label: '⏳ PIX' },
+  { key: 'aguardando', label: '⏳ Aguardando PIX' },
   { key: 'pendente',   label: 'Pendente' },
-  { key: 'transito',   label: 'Transporte' },
+  { key: 'transito',   label: 'Em Transporte' },
   { key: 'entregue',   label: 'Entregue' },
 ];
 
@@ -225,15 +225,7 @@ export default function MyOrdersScreen({ navigation }) {
       </View>
 
       {/* Filters */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsRow}
-        style={{ flexGrow: 0 }}
-        nestedScrollEnabled={true}
-        bounces={false}
-        decelerationRate="fast"
-      >
+      <View style={styles.chipsWrap}>
         {FILTERS.map((f) => {
           const active = activeFilter === f.key;
           return (
@@ -248,7 +240,7 @@ export default function MyOrdersScreen({ navigation }) {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* Content */}
       {loading ? (
@@ -313,26 +305,22 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, color: C.brown, fontFamily: 'PlusJakartaSans_800ExtraBold' },
 
-  chipsRow: {
+  chipsWrap: {
     flexDirection: 'row',
-    paddingLeft: 16,
-    paddingRight: 32,
-    paddingTop: 4,
-    paddingBottom: 14,
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     gap: 8,
-    flexWrap: 'nowrap',
-    alignItems: 'center',
   },
   chip: {
-    paddingHorizontal: 10,
-    height: 32,
+    paddingHorizontal: 14,
+    height: 34,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.card,
     borderWidth: 1,
     borderColor: C.border,
-    flexShrink: 0,
   },
   chipActive: {
     backgroundColor: C.brown,
@@ -340,13 +328,13 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontFamily: 'WorkSans_500Medium',
-    fontSize: 11,
+    fontSize: 12,
     color: C.muted,
   },
   chipTextActive: {
-    color: C.cream,
+    color: '#fff',
     fontFamily: 'PlusJakartaSans_600SemiBold',
-    fontSize: 11,
+    fontSize: 12,
   },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 },
@@ -359,17 +347,17 @@ const styles = StyleSheet.create({
   },
   loginBtnText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
 
-  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 4, gap: 12 },
+  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 8, gap: 14 },
 
   orderCard: {
     backgroundColor: C.card,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
     borderColor: C.border,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  orderId: { fontSize: 16, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
+  orderId: { fontSize: 18, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
   orderDate: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', marginTop: 2 },
   statusBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -385,13 +373,13 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' },
   orderTotal: {
     marginLeft: 'auto',
-    fontSize: 16, color: C.brown,
-    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 18, color: C.brown,
+    fontFamily: 'PlusJakartaSans_800ExtraBold',
   },
 
-  productImagesRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  productThumb: { width: 52, height: 52, borderRadius: 8, backgroundColor: C.chip },
-  productThumbMore: { width: 52, height: 52, borderRadius: 8, backgroundColor: C.chip, alignItems: 'center', justifyContent: 'center' },
+  productImagesRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  productThumb: { width: 68, height: 68, borderRadius: 12, backgroundColor: C.chip },
+  productThumbMore: { width: 68, height: 68, borderRadius: 12, backgroundColor: C.chip, alignItems: 'center', justifyContent: 'center' },
   productThumbMoreText: { fontSize: 13, color: C.muted, fontFamily: 'WorkSans_600SemiBold' },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.border },
   trackBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4 },
