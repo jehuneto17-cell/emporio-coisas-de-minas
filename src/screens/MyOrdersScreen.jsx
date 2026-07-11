@@ -229,6 +229,8 @@ export default function MyOrdersScreen({ navigation }) {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsRow}
+        style={{ flexGrow: 0 }}
+        nestedScrollEnabled={true}
       >
         {FILTERS.map((f) => {
           const active = activeFilter === f.key;
@@ -312,20 +314,23 @@ const styles = StyleSheet.create({
   chipsRow: {
     flexDirection: 'row',
     paddingLeft: 16,
-    paddingRight: 32,
+    paddingRight: 16,
     paddingTop: 4,
     paddingBottom: 14,
     gap: 8,
+    flexWrap: 'nowrap',
+    alignItems: 'center',
   },
   chip: {
-    paddingHorizontal: 16,
-    height: 38,
+    paddingHorizontal: 12,
+    height: 34,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.card,
     borderWidth: 1,
     borderColor: C.border,
+    flexShrink: 0,
   },
   chipActive: {
     backgroundColor: C.brown,
@@ -333,7 +338,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontFamily: 'WorkSans_500Medium',
-    fontSize: 14,
+    fontSize: 12,
     color: C.muted,
   },
   chipTextActive: {

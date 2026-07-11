@@ -543,6 +543,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **AddressesScreen: campo CPF adicionado no formulário de endereço** (2026-07-06) — `AddressesScreen.jsx`: campo CPF adicionado no formulário de endereço com máscara automática; validação opcional de 11 dígitos; salvo junto com o endereço no Firestore.
 ✅ **api/gerar-etiqueta.js: endpoint para gerar etiqueta automaticamente no Melhor Envio** (2026-07-06) — adiciona ao carrinho ME, faz checkout e retorna URL de impressão e código de rastreio.
 ✅ **api/webhook-melhor-envio.js: endpoint webhook para receber notificações do Melhor Envio** (2026-07-06) — mapeia status (posted/in_transit/delivered) para status do app e atualiza /pedidos e /users/{uid}/orders automaticamente via Firebase Admin SDK.
+✅ **MyOrdersScreen.jsx: ScrollView horizontal dos filtros corrigido para mobile web** (2026-07-11) — adicionado `flexGrow:0`, `flexShrink:0` nos chips e `fontSize` reduzido para caber na tela.
 
 ---
 
