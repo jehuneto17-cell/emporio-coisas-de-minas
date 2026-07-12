@@ -404,7 +404,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={16} color={C.terra} />
-            <Text style={styles.locationText}>Itaú de Minas, MG</Text>
+            <Text style={styles.locationText}>Passos de Minas, MG</Text>
           </View>
           <TouchableOpacity
             onPress={() => navigation.navigate('NotificationsPanel')}
