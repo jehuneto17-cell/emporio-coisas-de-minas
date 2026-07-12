@@ -550,14 +550,14 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **MyOrdersScreen.jsx: filtro '✅ Pago' adicionado — pedidos com status pago agora aparecem no filtro dedicado** (2026-07-11) — chip `{ key: 'pago', label: '✅ Pago' }` adicionado ao array `FILTERS` (após 'Aguardando PIX'); caso `key === 'pago'` adicionado em `matchesFilter` retornando `normalizeStatus(order.status) === 'pago'`.
 ✅ **CheckoutScreen.jsx: acréscimo automático para cartão de crédito** (2026-07-11) — lê `taxaCredito` do Firestore (`configuracoes/pagamento`, padrão 3%), calcula `cardSurcharge`, exibe aviso laranja ao cliente e linha no resumo do pedido. `getConfiguracoes()` adicionada em `firestore.js` (espelha `DB.getConfiguracoes` do admin: doc `loja` mesclado na raiz, demais docs keyed por id). `firestore.rules`: coleção `/configuracoes` com leitura pública + escrita bloqueada no client (publicar via `firebase deploy --only firestore:rules`).
 ✅ **CheckoutScreen.jsx: tabs de pagamento dinâmicas** (2026-07-11) — lê `cartaoAtivo` e `boletoAtivo` de `configuracoes/pagamento` no Firestore e oculta as tabs desabilitadas no painel admin; estados `cartaoAtivo` (padrão `true`) e `boletoAtivo` (padrão `false`); array das `payTabs` montado condicionalmente (`['pix', ...(cartaoAtivo ? ['card'] : []), ...(boletoAtivo ? ['boleto'] : [])]`); PIX sempre visível.
+✅ **CheckoutScreen.jsx + web/index.html: tokenização de cartão de crédito via SDK Mercado Pago** (2026-07-12) — SDK MP v2 carregado no web/index.html; função `tokenizarCartao()` gera token seguro com `mp.createCardToken()`; detecta bandeira via API do MP (bin dos 6 primeiros dígitos); campo CPF do titular adicionado; mensagens de erro amigáveis para rejeições comuns (saldo insuficiente, dados incorretos, cartão desabilitado); envia token + paymentMethodId + issuerId para `/api/criar-pagamento-cartao.js`; pagamento processado em produção real via Mercado Pago. Rejeição/erro mantém o usuário na tela com `setCardError` (sem navegar); botão "Confirmar Pagamento" desabilitado durante `cardLoading`; boleto (quando ativo) navega com `paymentStatus: 'pending'`. Requer env var `MP_ACCESS_TOKEN` (produção) no Vercel.
 
 ---
 
 ## 11. O Que Ainda Falta
 
 ❌ **Seed do Firestore pendente** — coleção `/produtos` ainda vazia em produção. Use `DB.seedDadosIniciais()` no console do painel admin para popular. O seed já inclui todos os campos necessários (`visible`, `featured`, `description`, `longDesc`, `producer`, `location`) e categorias em minúsculas. Sem o seed, as telas exibem empty state
-❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados; `addOrder` salva o pedido mas não processa pagamento real
-❌ **Gateway de pagamento real** — PIX, cartão e boleto são simulados
+❌ **Boleto real** — PIX e cartão já processam pagamento real via Mercado Pago; boleto ainda é simulado (navega direto para confirmação com `paymentStatus: 'pending'`) e permanece desativado por padrão (`boletoAtivo: false` em `configuracoes/pagamento`)
 ❌ **Token válido do Melhor Envio** — 🔴 **BLOQUEADOR ATIVO DO FRETE.** O token atual (em `api/calcular-frete.js`) é rejeitado com `{"message":"Unauthenticated."}` no sandbox e na produção. **Como resolver:** (1) gerar um novo token no painel sandbox (https://sandbox.melhorenvio.com.br → Configurações → Tokens, com escopo `shipping-calculate`); (2) no Vercel, definir a env var `MELHOR_ENVIO_TOKEN` com o novo valor (Settings → Environment Variables) e fazer redeploy; (3) o código já lê dessa env var automaticamente. Enquanto isso, o CheckoutScreen exibe a mensagem de erro real e botão "Tentar novamente" (sem travar o spinner)
 ❌ **Rastreamento real** — `getTrackingInfo()` implementado mas endpoint `/api/rastrear` ainda não existe no Vercel; integração Correios pendente
 ❌ **Admin via Custom Claims** — atualmente por e-mail no token (menos seguro)
@@ -572,7 +572,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 
 1. **Seed do Firestore** — usar `DB.seedDadosIniciais()` no console do painel admin (campos completos já configurados). Depois administrar produtos pelo painel (`edit-app.jsx`) ou direto no Firebase Console
 
-2. **Gateway de pagamento real** — integrar PIX (Mercado Pago ou Pagar.me) e cartão (Stripe ou Asaas)
+2. **Boleto real** — integrar boleto via Mercado Pago (PIX e cartão já estão em produção)
 
 4. **Rastreamento Correios** — integrar API dos Correios com o número de rastreio
 

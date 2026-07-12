@@ -64,6 +64,7 @@ export default function CheckoutScreen({ navigation }) {
   const [cardName, setCardName] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
+  const [cardCpf, setCardCpf] = useState('');
   const [cardError, setCardError] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
   const [cardLoading, setCardLoading] = useState(false);
@@ -336,6 +337,83 @@ export default function CheckoutScreen({ navigation }) {
     const d = v.replace(/\D/g, '').slice(0, 4);
     return d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
   }
+  function formatCpf(v) {
+    const d = v.replace(/\D/g, '').slice(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return d.slice(0, 3) + '.' + d.slice(3);
+    if (d.length <= 9) return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6);
+    return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9);
+  }
+
+  async function tokenizarCartao() {
+    // Validações básicas
+    const numLimpo = cardNumber.replace(/\D/g, '');
+    if (numLimpo.length < 13 || numLimpo.length > 16) {
+      throw new Error('Número do cartão inválido.');
+    }
+    if (!cardName.trim()) {
+      throw new Error('Informe o nome como está no cartão.');
+    }
+    const [mm, aa] = cardExpiry.split('/');
+    if (!mm || !aa || parseInt(mm) < 1 || parseInt(mm) > 12) {
+      throw new Error('Validade inválida. Use o formato MM/AA.');
+    }
+    const cvvLimpo = cardCvv.replace(/\D/g, '');
+    if (cvvLimpo.length < 3) {
+      throw new Error('CVV inválido.');
+    }
+    const cpfLimpo = cardCpf.replace(/\D/g, '');
+    if (cpfLimpo.length !== 11) {
+      throw new Error('CPF do titular inválido.');
+    }
+
+    // Verifica se o SDK do Mercado Pago está carregado (só funciona na web)
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.MercadoPago) {
+      throw new Error('Pagamento com cartão disponível apenas na versão web no momento.');
+    }
+
+    const mp = new window.MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+
+    // Gera o token do cartão
+    const tokenData = await mp.createCardToken({
+      cardNumber: numLimpo,
+      cardholderName: cardName.trim().toUpperCase(),
+      cardExpirationMonth: mm,
+      cardExpirationYear: '20' + aa,
+      securityCode: cvvLimpo,
+      identificationType: 'CPF',
+      identificationNumber: cpfLimpo,
+    });
+
+    if (!tokenData || !tokenData.id) {
+      throw new Error('Não foi possível gerar o token do cartão. Verifique os dados.');
+    }
+
+    // Detecta a bandeira do cartão (paymentMethodId)
+    // O bin são os primeiros 6 dígitos
+    let paymentMethodId = 'visa'; // fallback
+    let issuerId = null;
+    try {
+      const bin = numLimpo.slice(0, 6);
+      const pmResponse = await fetch(`https://api.mercadopago.com/v1/payment_methods/search?public_key=${MP_PUBLIC_KEY}&bin=${bin}&marketplace=NONE`);
+      const pmData = await pmResponse.json();
+      if (pmData.results && pmData.results.length > 0) {
+        paymentMethodId = pmData.results[0].id;
+        // Busca issuer (emissor do cartão)
+        if (pmData.results[0].issuer && pmData.results[0].issuer.id) {
+          issuerId = String(pmData.results[0].issuer.id);
+        }
+      }
+    } catch (e) {
+      console.warn('[Cartão] erro ao detectar bandeira, usando fallback:', e.message);
+    }
+
+    return {
+      token: tokenData.id,
+      paymentMethodId,
+      issuerId,
+    };
+  }
 
   async function handleConfirm() {
     if (!user?.uid) {
@@ -412,10 +490,66 @@ export default function CheckoutScreen({ navigation }) {
       if (tab === 'pix') {
         // Gera PIX e mostra QR na tela — não navega ainda
         await gerarPixReal(orderId);
+      } else if (tab === 'card') {
+        // Cartão: tokeniza e processa via Mercado Pago
+        setCardLoading(true);
+        setCardError('');
+        try {
+          const { token, paymentMethodId, issuerId } = await tokenizarCartao();
+
+          const res = await fetch(CARTAO_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              total: checkoutTotal,
+              email: user?.email || 'cliente@emporiominas.com.br',
+              orderId,
+              description: `Pedido #${orderId.slice(-6)} — Empório Coisas de Minas`,
+              token,
+              installments: 1,
+              paymentMethodId,
+              issuerId,
+            }),
+          });
+
+          const data = await res.json();
+          console.log('[Cartão] resposta:', JSON.stringify(data));
+
+          if (!res.ok || data.status === 'rejected') {
+            // Mapeia os status_detail comuns do MP para mensagens amigáveis
+            const msgs = {
+              cc_rejected_insufficient_amount: 'Saldo insuficiente no cartão.',
+              cc_rejected_bad_filled_card_number: 'Número do cartão incorreto.',
+              cc_rejected_bad_filled_date: 'Data de validade incorreta.',
+              cc_rejected_bad_filled_security_code: 'Código de segurança incorreto.',
+              cc_rejected_bad_filled_other: 'Dados do cartão incorretos.',
+              cc_rejected_call_for_authorize: 'Ligue para a operadora do cartão para autorizar.',
+              cc_rejected_card_disabled: 'Cartão desabilitado. Ligue para a operadora.',
+              cc_rejected_max_attempts: 'Limite de tentativas excedido. Use outro cartão.',
+              cc_rejected_duplicated_payment: 'Pagamento duplicado. Aguarde ou use outro cartão.',
+              cc_rejected_other_reason: 'Pagamento recusado. Tente com outro cartão.',
+            };
+            const detalhe = data.status_detail || '';
+            const msgErro = msgs[detalhe] || data.error || 'Pagamento recusado. Tente novamente.';
+            setCardError(msgErro);
+            setCardLoading(false);
+            return; // NÃO navega — mantém na tela para corrigir
+          }
+
+          // Pagamento aprovado!
+          setCardLoading(false);
+          clearCart();
+          navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
+        } catch (e) {
+          console.warn('[Cartão] erro:', e.message);
+          setCardError(e.message || 'Erro ao processar cartão. Tente novamente.');
+          setCardLoading(false);
+          return; // NÃO navega — mantém na tela para corrigir
+        }
       } else {
-        // Cartão e boleto: navega direto
+        // Boleto: navega direto (implementação futura)
         clearCart();
-        navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
+        navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'pending' });
       }
     } catch (e) {
       console.warn('[Checkout] error', e);
@@ -766,6 +900,19 @@ export default function CheckoutScreen({ navigation }) {
                   />
                 </View>
               </View>
+              <View>
+                <Text style={styles.fieldLabel}>CPF do titular</Text>
+                <TextInput
+                  style={styles.cardInput}
+                  placeholder="000.000.000-00"
+                  placeholderTextColor={C.subtle}
+                  value={cardCpf}
+                  onChangeText={(v) => setCardCpf(formatCpf(v))}
+                  keyboardType="numeric"
+                  maxLength={14}
+                  outlineStyle="none"
+                />
+              </View>
               {tab === 'card' && cardSurcharge > 0 && (
                 <View style={{ backgroundColor: '#fff3e0', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8 }}>
                   <Ionicons name="information-circle-outline" size={16} color="#f57c00" />
@@ -827,11 +974,11 @@ export default function CheckoutScreen({ navigation }) {
 
       <View style={styles.bottomBar}>
         <TouchableOpacity
-          style={[styles.confirmBtn, confirming && { opacity: 0.6 }]}
+          style={[styles.confirmBtn, (confirming || cardLoading) && { opacity: 0.6 }]}
           onPress={handleConfirm}
-          disabled={confirming}
+          disabled={confirming || cardLoading}
         >
-          {confirming
+          {confirming || cardLoading
             ? <ActivityIndicator color="#fff" />
             : <Text style={styles.confirmText}>
                 {tab === 'pix' && pixGenerated
