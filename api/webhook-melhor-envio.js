@@ -40,13 +40,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Configuração ausente.' });
   }
 
-  // Se não há assinatura e não há corpo, é provavelmente o teste de validação do Melhor Envio ao salvar o webhook — responder OK sem processar nada
-  if (!signature && Object.keys(rawBody).length === 0) {
-    return res.status(200).json({ ok: true, test: true });
-  }
-
+  // Se não há assinatura, verificar se parece uma notificação real de pedido (tem order_id).
+  // Se não tiver order_id, é provavelmente o teste de validação do painel do Melhor Envio ao salvar o webhook.
   if (!signature) {
-    console.warn('[webhook-ME] requisição sem assinatura recebida — rejeitada.');
+    if (!rawBody.order_id) {
+      return res.status(200).json({ ok: true, test: true });
+    }
+    console.warn('[webhook-ME] requisição com order_id mas sem assinatura recebida — rejeitada.');
     return res.status(401).json({ error: 'Assinatura ausente.' });
   }
 
