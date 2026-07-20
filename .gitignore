@@ -41,3 +41,5 @@ yarn-error.*
 /android
 
 .vercel
+melhorenvio-token.json
+*firebase-adminsdk*.json
