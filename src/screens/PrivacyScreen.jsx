@@ -94,7 +94,10 @@ export default function PrivacyScreen({ navigation }) {
       await deleteAccount(deletePassword);
       await logout();
       setDeleteModal(false);
-      Alert.alert('Conta excluída', 'Seus dados foram removidos permanentemente.');
+      Alert.alert(
+        'Conta excluída',
+        'Seus dados pessoais (carrinho, favoritos, endereços e preferências) foram removidos. O histórico de pedidos é mantido por período determinado, conforme exigido pela legislação fiscal e de defesa do consumidor.'
+      );
     } catch (e) {
       const msg = e.code
         ? getAuthErrorMessage(e.code)
