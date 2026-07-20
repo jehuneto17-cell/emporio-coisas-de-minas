@@ -554,6 +554,7 @@ fmt(n) // → 'R$ ' + n.toFixed(2).replace('.', ',')
 ✅ **HomeScreen.jsx: localização alterada de "Itaú de Minas" para "Passos de Minas"** (2026-07-12)
 ✅ **app.json + assets/icon.png: ícone do app e splash screen configurados com a logo do Empório** (2026-07-14) — icon 1024x1024, adaptiveIcon com backgroundColor #52170c (C.brown), splash com resizeMode contain. `assets/icon.png` (antigo "A" azul do Expo) substituído pela logo real do Empório e copiado para `assets/android-icon-foreground.png` e `assets/favicon.png`
 ✅ **CheckoutScreen.jsx: card de localização clicável estilo WhatsApp na retirada + correção do endereço** (2026-07-19) — card com preview de mapa estático, endereço completo (Rua dos Piantinos, 657, Bairro Muarama, Passos-MG) e toque abre o Google Maps direto na localização da loja via `Linking.openURL`; corrigido texto "Itaú de Minas" (incorreto) para "Passos, MG" em 3 pontos do arquivo (card de retirada e dados de deliveryAddress salvos no pedido).
+✅ **CheckoutScreen.jsx: imagem do mapa trocada para asset local** (2026-07-19) — a URL externa do OpenStreetMap não carregava; substituída por `assets/mapa-loja.png`, ilustração estilizada no estilo Minas Gourmet Modern com pin marrom e ícone de loja.
 
 ---
 
