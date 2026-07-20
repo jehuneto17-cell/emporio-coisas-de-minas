@@ -39,6 +39,16 @@ export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
   const { items, totalItems, subtotal, discount, coupon, couponApplied, clearCart } = useCart();
 
+  async function getAuthToken() {
+    if (!user) return null;
+    try {
+      return await user.getIdToken();
+    } catch (e) {
+      console.warn('[Auth] erro ao obter token:', e.message);
+      return null;
+    }
+  }
+
   const [deliveryMode, setDeliveryMode] = useState('delivery'); // 'delivery' | 'pickup'
   const [tab, setTab] = useState('pix');
   const [seconds, setSeconds] = useState(15 * 60);
@@ -187,9 +197,14 @@ export default function CheckoutScreen({ navigation }) {
       console.log('[Frete] iniciando fetch para:', FRETE_API_URL);
       console.log('[Frete] body:', JSON.stringify(body));
 
+      const authToken = await getAuthToken();
+
       const res = await fetch(FRETE_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
@@ -268,9 +283,13 @@ export default function CheckoutScreen({ navigation }) {
     setPixLoading(true);
     try {
       const total = checkoutTotal > 0.5 ? checkoutTotal : 1;
+      const authToken = await getAuthToken();
       const res = await fetch(PIX_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
         body: JSON.stringify({
           total,
           email: user?.email || 'cliente@emporiominas.com.br',
@@ -298,7 +317,12 @@ export default function CheckoutScreen({ navigation }) {
       if (data.id) {
         const interval = setInterval(async () => {
           try {
-            const vRes = await fetch(`${VERIFICAR_API_URL}?paymentId=${data.id}`);
+            const pollToken = await getAuthToken();
+            const vRes = await fetch(`${VERIFICAR_API_URL}?paymentId=${data.id}`, {
+              headers: {
+                ...(pollToken ? { Authorization: `Bearer ${pollToken}` } : {}),
+              },
+            });
             const vData = await vRes.json();
             if (vData.status === 'approved') {
               setPaymentStatus('approved');
@@ -502,9 +526,13 @@ export default function CheckoutScreen({ navigation }) {
         try {
           const { token, paymentMethodId, issuerId } = await tokenizarCartao();
 
+          const authToken = await getAuthToken();
           const res = await fetch(CARTAO_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+            },
             body: JSON.stringify({
               total: checkoutTotal,
               email: user?.email || 'cliente@emporiominas.com.br',
