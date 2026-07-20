@@ -12,9 +12,25 @@ import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile,
 
 const CEP_ORIGEM = '37900900';
 
-const FRETE_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? 'https://emporio-coisas-de-minas.vercel.app/api/calcular-frete'
-  : 'http://localhost:8081/api/calcular-frete';
+const PRODUCTION_API_BASE = 'https://emporio-coisas-de-minas.vercel.app';
+
+function getApiBaseUrl() {
+  if (Platform.OS === 'web') {
+    // Na web, usa caminho relativo — funciona tanto em produção (Vercel)
+    // quanto em desenvolvimento local (o dev server do Expo já serve /api também)
+    return '';
+  }
+  // No nativo (iOS/Android), sempre aponta para produção — nunca localhost,
+  // que não existe/não é acessível a partir de um dispositivo físico ou emulador.
+  return PRODUCTION_API_BASE;
+}
+
+const API_BASE = getApiBaseUrl();
+
+const FRETE_API_URL = `${API_BASE}/api/calcular-frete`;
+const PIX_API_URL = `${API_BASE}/api/criar-pagamento-pix`;
+const CARTAO_API_URL = `${API_BASE}/api/criar-pagamento-cartao`;
+const VERIFICAR_API_URL = `${API_BASE}/api/verificar-pagamento`;
 
 const MP_PUBLIC_KEY = 'APP_USR-1cbd888f-0b77-47d3-9d65-62a584297e32';
 
@@ -22,18 +38,6 @@ const mapaLoja = require('../../assets/mapa-loja.png');
 
 const LOJA_ENDERECO = 'Rua dos Piantinos, 657 — Bairro Muarama — Passos, MG';
 const LOJA_MAPS_URL = 'https://www.google.com/maps/@-20.7274348,-46.6114766,3a,70.3y,134.97h,85.27t/data=!3m7!1e1!3m5!1sJMrtLvXdvsX4_ZDBJBzmqQ!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D4.725950555789794%26panoid%3DJMrtLvXdvsX4_ZDBJBzmqQ%26yaw%3D134.97445463305277!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D';
-
-const PIX_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-pix'
-  : 'http://localhost:8081/api/criar-pagamento-pix';
-
-const CARTAO_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-cartao'
-  : 'http://localhost:8081/api/criar-pagamento-cartao';
-
-const VERIFICAR_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? 'https://emporio-coisas-de-minas.vercel.app/api/verificar-pagamento'
-  : 'http://localhost:8081/api/verificar-pagamento';
 
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
