@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -27,9 +28,50 @@ function mapStatus(meStatus) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
+  // Corpo pode vir vazio em requisições de teste do painel do Melhor Envio
+  const rawBody = req.body && Object.keys(req.body).length > 0 ? req.body : {};
+
+  // Validação da assinatura HMAC-SHA256 (X-ME-Signature)
+  const secret = process.env.MELHOR_ENVIO_CLIENT_SECRET;
+  const signature = req.headers['x-me-signature'];
+
+  if (!secret) {
+    console.error('[webhook-ME] MELHOR_ENVIO_CLIENT_SECRET não configurado.');
+    return res.status(500).json({ error: 'Configuração ausente.' });
+  }
+
+  // Se não há assinatura e não há corpo, é provavelmente o teste de validação do Melhor Envio ao salvar o webhook — responder OK sem processar nada
+  if (!signature && Object.keys(rawBody).length === 0) {
+    return res.status(200).json({ ok: true, test: true });
+  }
+
+  if (!signature) {
+    console.warn('[webhook-ME] requisição sem assinatura recebida — rejeitada.');
+    return res.status(401).json({ error: 'Assinatura ausente.' });
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(rawBody))
+    .digest('hex');
+
+  const validSignature =
+    signature.length === expectedSignature.length &&
+    crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+
+  if (!validSignature) {
+    console.warn('[webhook-ME] assinatura inválida — possível tentativa de forjar requisição.');
+    return res.status(401).json({ error: 'Assinatura inválida.' });
+  }
+
+  // A partir daqui, a requisição foi validada como vinda de fato do Melhor Envio.
   try {
-    const { tracking, status, order_id } = req.body;
+    const { tracking, status, order_id } = rawBody;
     console.log('[webhook-ME] recebido:', { tracking, status, order_id });
+
+    if (!order_id) {
+      return res.status(200).json({ ok: true, ignored: true, reason: 'sem order_id' });
+    }
 
     const newStatus = mapStatus(status);
     if (!newStatus) {
@@ -76,6 +118,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, pedidoId, newStatus });
   } catch (e) {
     console.error('[webhook-ME]', e);
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: 'Erro interno.' });
   }
 }
