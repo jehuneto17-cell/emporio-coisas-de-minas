@@ -12,6 +12,7 @@ import {
   writeBatch,
   increment,
   serverTimestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import app from './firebase';
 
@@ -450,24 +451,30 @@ export async function hasUserBoughtProduct(uid, productId) {
 
 export async function decrementarEstoque(items) {
   if (!items || items.length === 0) return;
-  try {
-    const batch = writeBatch(db);
-    for (const item of items) {
-      if (!item.id) continue;
-      const ref = doc(db, 'produtos', String(item.id));
-      const snap = await getDoc(ref);
-      if (!snap.exists()) continue;
-      const currentStock = snap.data().stock ?? 0;
-      const newStock = Math.max(0, currentStock - (item.qty || 1));
-      batch.update(ref, {
-        stock: newStock,
-        status: newStock === 0 ? 'Esgotado' : 'Ativo',
-        updatedAt: new Date(),
+
+  for (const item of items) {
+    if (!item.id) continue;
+    const ref = doc(db, 'produtos', String(item.id));
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(ref);
+        if (!snap.exists()) return;
+
+        const currentStock = snap.data().stock ?? 0;
+        const newStock = Math.max(0, currentStock - (item.qty || 1));
+
+        transaction.update(ref, {
+          stock: newStock,
+          status: newStock === 0 ? 'Esgotado' : 'Ativo',
+          updatedAt: new Date(),
+        });
       });
+    } catch (e) {
+      console.warn('[decrementarEstoque] falha ao decrementar produto', item.id, ':', e.message);
+      // Não relança o erro para não interromper o restante do checkout,
+      // mas o log acima permite investigar se isso ocorrer.
     }
-    await batch.commit();
-  } catch (e) {
-    console.warn('[decrementarEstoque]', e.message);
   }
 }
 
