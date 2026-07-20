@@ -332,6 +332,7 @@ export default function CheckoutScreen({ navigation }) {
               setPaymentStatus('approved');
               clearInterval(interval);
               if (user?.uid) await updatePixStatus(user.uid, orderId, 'approved');
+              await decrementarEstoque(items);
               // Navega automaticamente para confirmação
               clearCart();
               navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
@@ -518,8 +519,6 @@ export default function CheckoutScreen({ navigation }) {
         }
       }
 
-      await decrementarEstoque(items);
-
       if (tab === 'pix') {
         // Gera PIX e mostra QR na tela — não navega ainda
         await gerarPixReal(orderId);
@@ -574,6 +573,7 @@ export default function CheckoutScreen({ navigation }) {
           }
 
           // Pagamento aprovado!
+          await decrementarEstoque(items);
           setCardLoading(false);
           clearCart();
           navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
