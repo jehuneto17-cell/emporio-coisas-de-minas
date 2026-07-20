@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
-  Modal, ActivityIndicator, Platform, Alert, Image,
+  Modal, ActivityIndicator, Platform, Alert, Image, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,11 @@ const FRETE_API_URL = typeof window !== 'undefined' && window.location.hostname 
   : 'http://localhost:8081/api/calcular-frete';
 
 const MP_PUBLIC_KEY = 'APP_USR-1cbd888f-0b77-47d3-9d65-62a584297e32';
+
+const LOJA_ENDERECO = 'Rua dos Piantinos, 657 — Bairro Muarama — Passos, MG';
+const LOJA_MAPS_URL = 'https://www.google.com/maps/@-20.7274348,-46.6114766,3a,70.3y,134.97h,85.27t/data=!3m7!1e1!3m5!1sJMrtLvXdvsX4_ZDBJBzmqQ!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D4.725950555789794%26panoid%3DJMrtLvXdvsX4_ZDBJBzmqQ%26yaw%3D134.97445463305277!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D';
+// Imagem estática do mapa centrada nas coordenadas da loja (Static Maps público, sem necessidade de API key)
+const LOJA_MAPA_PREVIEW = 'https://staticmap.openstreetmap.de/staticmap.php?center=-20.7274348,-46.6114766&zoom=16&size=600x300&markers=-20.7274348,-46.6114766,red-pushpin';
 
 const PIX_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-pix'
@@ -450,7 +455,7 @@ export default function CheckoutScreen({ navigation }) {
         shippingCompany: deliveryMode === 'pickup' ? '' : (selectedOption?.company?.name || ''),
         shippingCost: effectiveShippingCost,
         deliveryAddress: deliveryMode === 'pickup'
-          ? { label: 'Retirada na loja', city: 'Itaú de Minas', state: 'MG' }
+          ? { label: 'Retirada na loja', city: 'Passos', state: 'MG' }
           : (deliveryAddress || null),
         status: tab === 'pix' ? 'Aguardando pagamento' : 'Pendente',
       }));
@@ -475,7 +480,7 @@ export default function CheckoutScreen({ navigation }) {
             shippingCompany: deliveryMode === 'pickup' ? '' : (selectedOption?.company?.name || ''),
             shippingCost: effectiveShippingCost,
             deliveryAddress: deliveryMode === 'pickup'
-              ? { label: 'Retirada na loja', city: 'Itaú de Minas', state: 'MG' }
+              ? { label: 'Retirada na loja', city: 'Passos', state: 'MG' }
               : deliveryAddress,
             paymentMethod: tab,
             status: tab === 'pix' ? 'Aguardando pagamento' : 'Pendente',
@@ -563,6 +568,12 @@ export default function CheckoutScreen({ navigation }) {
     : selectedOption
       ? `Frete ${selectedOption.company?.name || selectedOption.name}`
       : 'Frete';
+
+  function abrirLocalizacaoLoja() {
+    Linking.openURL(LOJA_MAPS_URL).catch((e) => {
+      console.warn('[Checkout] erro ao abrir mapa:', e.message);
+    });
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -652,17 +663,44 @@ export default function CheckoutScreen({ navigation }) {
             </TouchableOpacity>
           </View>
           {deliveryMode === 'pickup' && (
-            <View style={{ marginTop: 12, backgroundColor: '#fef3e2', borderRadius: 10, padding: 12, gap: 4 }}>
-              <Text style={{ fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' }}>
-                📍 Empório Coisas de Minas
-              </Text>
-              <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' }}>
-                Itaú de Minas · MG
-              </Text>
-              <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', marginTop: 4 }}>
-                Após o pagamento, apresente o código do pedido na loja para retirar.
-              </Text>
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={abrirLocalizacaoLoja}
+              style={{
+                marginTop: 12,
+                borderRadius: 12,
+                overflow: 'hidden',
+                backgroundColor: '#fff',
+                borderWidth: 1,
+                borderColor: C.border,
+              }}
+            >
+              <Image
+                source={{ uri: LOJA_MAPA_PREVIEW }}
+                style={{ width: '100%', height: 140, backgroundColor: C.chip }}
+                resizeMode="cover"
+              />
+              <View style={{ padding: 12, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="location" size={16} color={C.terra} />
+                  <Text style={{ fontSize: 13, color: C.terra, fontFamily: 'WorkSans_600SemiBold' }}>
+                    Empório Coisas de Minas
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' }}>
+                  {LOJA_ENDERECO}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                  <Ionicons name="navigate-outline" size={12} color={C.subtle} />
+                  <Text style={{ fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular' }}>
+                    Toque para abrir no Google Maps
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', marginTop: 6 }}>
+                  Após o pagamento, apresente o código do pedido na loja para retirar.
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
         </View>
 
