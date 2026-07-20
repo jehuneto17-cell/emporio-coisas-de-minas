@@ -13,12 +13,15 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from 'firebase/auth';
+import { getFirestore, doc, deleteDoc, collection, getDocs } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import app from './firebase';
 
 WebBrowser.maybeCompleteAuthSession();
+
+const db = getFirestore(app);
 
 const auth = Platform.OS === 'web'
   ? getAuth(app)
@@ -57,11 +60,44 @@ export function sendPasswordResetEmail(email) {
   return firebaseSendPasswordResetEmail(auth, email);
 }
 
+async function deleteUserFirestoreData(uid) {
+  // Apaga subcoleções conhecidas dentro de /users/{uid}
+  const subcolecoes = ['cart', 'favorites', 'orders', 'addresses', 'settings', 'notifications'];
+
+  for (const sub of subcolecoes) {
+    try {
+      const snap = await getDocs(collection(db, 'users', uid, sub));
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    } catch (e) {
+      console.warn(`[deleteAccount] falha ao apagar users/${uid}/${sub}:`, e.message);
+    }
+  }
+
+  // Apaga o documento principal do usuário
+  try {
+    await deleteDoc(doc(db, 'users', uid));
+  } catch (e) {
+    console.warn('[deleteAccount] falha ao apagar users/{uid}:', e.message);
+  }
+
+  // Apaga o espelho de cliente (usado pelo admin)
+  try {
+    await deleteDoc(doc(db, 'clientes', uid));
+  } catch (e) {
+    console.warn('[deleteAccount] falha ao apagar clientes/{uid}:', e.message);
+  }
+
+  // Nota: os pedidos em /pedidos (espelho admin) são mantidos por padrão,
+  // pois representam histórico de transações comerciais/fiscais da loja,
+  // não apenas dados pessoais do usuário.
+}
+
 export async function deleteAccount(password) {
   const user = auth.currentUser;
   if (!user) throw new Error('Usuário não autenticado.');
   const credential = EmailAuthProvider.credential(user.email, password);
   await reauthenticateWithCredential(user, credential);
+  await deleteUserFirestoreData(user.uid);
   await deleteUser(user);
 }
 
