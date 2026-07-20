@@ -1,9 +1,32 @@
+import { auth } from './_firebaseAdmin.js';
+
+const ADMIN_EMAILS = ['emporiominas00@gmail.com'];
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Autenticação necessária.' });
+  }
+
+  let decoded;
+  try {
+    decoded = await auth.verifyIdToken(token);
+  } catch (e) {
+    console.warn('[gerar-etiqueta] token inválido:', e.message);
+    return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+  }
+
+  if (!ADMIN_EMAILS.includes(decoded.email)) {
+    return res.status(403).json({ error: 'Acesso restrito ao administrador.' });
+  }
 
   const ME_TOKEN = process.env.MELHOR_ENVIO_TOKEN;
   if (!ME_TOKEN) return res.status(500).json({ error: 'Token do Melhor Envio não configurado.' });
