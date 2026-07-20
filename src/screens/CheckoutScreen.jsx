@@ -18,10 +18,10 @@ const FRETE_API_URL = typeof window !== 'undefined' && window.location.hostname 
 
 const MP_PUBLIC_KEY = 'APP_USR-1cbd888f-0b77-47d3-9d65-62a584297e32';
 
+const mapaLoja = require('../../assets/mapa-loja.png');
+
 const LOJA_ENDERECO = 'Rua dos Piantinos, 657 — Bairro Muarama — Passos, MG';
 const LOJA_MAPS_URL = 'https://www.google.com/maps/@-20.7274348,-46.6114766,3a,70.3y,134.97h,85.27t/data=!3m7!1e1!3m5!1sJMrtLvXdvsX4_ZDBJBzmqQ!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D4.725950555789794%26panoid%3DJMrtLvXdvsX4_ZDBJBzmqQ%26yaw%3D134.97445463305277!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D';
-// Imagem estática do mapa centrada nas coordenadas da loja (Static Maps público, sem necessidade de API key)
-const LOJA_MAPA_PREVIEW = 'https://staticmap.openstreetmap.de/staticmap.php?center=-20.7274348,-46.6114766&zoom=16&size=600x300&markers=-20.7274348,-46.6114766,red-pushpin';
 
 const PIX_API_URL = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
   ? 'https://emporio-coisas-de-minas.vercel.app/api/criar-pagamento-pix'
@@ -676,7 +676,7 @@ export default function CheckoutScreen({ navigation }) {
               }}
             >
               <Image
-                source={{ uri: LOJA_MAPA_PREVIEW }}
+                source={mapaLoja}
                 style={{ width: '100%', height: 140, backgroundColor: C.chip }}
                 resizeMode="cover"
               />
