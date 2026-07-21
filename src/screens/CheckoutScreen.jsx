@@ -453,6 +453,7 @@ export default function CheckoutScreen({ navigation }) {
       setCheckoutError('Aguarde o cálculo do frete ou tente novamente.');
       return;
     }
+    setCheckoutError('');
     setConfirming(true);
     try {
       // Se PIX já foi gerado mas não pago, bloqueia
@@ -580,6 +581,7 @@ export default function CheckoutScreen({ navigation }) {
       }
     } catch (e) {
       console.warn('[Checkout] error', e);
+      setCheckoutError('Não foi possível confirmar seu pedido. Verifique sua conexão e tente novamente.');
     } finally {
       setConfirming(false);
     }
