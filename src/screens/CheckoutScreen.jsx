@@ -104,6 +104,16 @@ export default function CheckoutScreen({ navigation }) {
     return () => clearInterval(t);
   }, []);
 
+  // Encerra o polling de status do PIX se o componente for desmontado
+  // (usuário sai da tela) enquanto o pagamento ainda está pendente.
+  useEffect(() => {
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    };
+  }, [pollingInterval]);
+
   // Busca a taxa de acréscimo do cartão configurada no painel admin
   useEffect(() => {
     getConfiguracoes().then((cfg) => {
@@ -310,7 +320,15 @@ export default function CheckoutScreen({ navigation }) {
       }
       // Inicia polling a cada 5s
       if (data.id) {
+        let tentativas = 0;
+        const MAX_TENTATIVAS = 60; // 60 tentativas x 5s = 5 minutos de polling máximo
         const interval = setInterval(async () => {
+          tentativas++;
+          if (tentativas > MAX_TENTATIVAS) {
+            clearInterval(interval);
+            console.warn('[PIX] tempo máximo de polling atingido, encerrando verificação automática.');
+            return;
+          }
           try {
             const pollToken = await getAuthToken();
             const vRes = await fetch(`${VERIFICAR_API_URL}?paymentId=${data.id}`, {
