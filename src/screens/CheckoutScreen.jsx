@@ -198,9 +198,6 @@ export default function CheckoutScreen({ navigation }) {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      console.log('[Frete] iniciando fetch para:', FRETE_API_URL);
-      console.log('[Frete] body:', JSON.stringify(body));
-
       const authToken = await getAuthToken();
 
       const res = await fetch(FRETE_API_URL, {
@@ -213,10 +210,7 @@ export default function CheckoutScreen({ navigation }) {
         signal: controller.signal,
       });
 
-      console.log('[Frete] status HTTP:', res.status, res.ok);
-
       const data = await res.json();
-      console.log('[Frete] data recebida:', JSON.stringify(data));
 
       // O Melhor Envio devolve um array de transportadoras quando OK.
       // Qualquer outra coisa (ex.: { message: 'Unauthenticated.' }) é erro.
@@ -302,7 +296,6 @@ export default function CheckoutScreen({ navigation }) {
         }),
       });
       const data = await res.json();
-      console.log('[PIX] resposta da API:', JSON.stringify(data));
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar PIX');
       if (!data.qr_code && !data.qr_code_base64) {
         throw new Error('QR Code não retornado pelo Mercado Pago. Verifique o valor mínimo (R$ 0,01).');
@@ -312,10 +305,8 @@ export default function CheckoutScreen({ navigation }) {
       setCurrentOrderId(orderId);
       setPaymentStatus('pending');
       // Salva QR Code no Firestore para o cliente pagar depois
-      console.log('[PIX] salvando no Firestore — pixId:', data.id, 'uid:', user?.uid, 'orderId:', orderId);
       if (user?.uid) {
         await savePixData(user.uid, orderId, data);
-        console.log('[PIX] savePixData concluído');
       }
       // Inicia polling a cada 5s
       if (data.id) {
@@ -549,7 +540,6 @@ export default function CheckoutScreen({ navigation }) {
           });
 
           const data = await res.json();
-          console.log('[Cartão] resposta:', JSON.stringify(data));
 
           if (!res.ok || data.status === 'rejected') {
             // Mapeia os status_detail comuns do MP para mensagens amigáveis
