@@ -81,8 +81,18 @@ export async function getProductsByCategory(categoryId) {
 }
 
 export async function getProductById(id) {
-  const all = await fetchAll();
-  return all.find((p) => p.id === id) ?? null;
+  if (!id) return null;
+  try {
+    const ref = doc(db, COL, String(id));
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const product = mapProduct(snap);
+    if (product.visible === false || product.status === 'Inativo') return null;
+    return product;
+  } catch (e) {
+    console.warn('[getProductById] erro ao buscar produto', id, ':', e.message);
+    return null;
+  }
 }
 
 export async function createUserProfile(uid, { name, email, phone, cpf }) {
