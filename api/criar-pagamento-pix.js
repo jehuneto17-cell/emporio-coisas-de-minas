@@ -25,11 +25,16 @@ const handler = async (req, res) => {
 
   const token = process.env.PAGBANK_TOKEN?.trim();
   if (!token) {
+    console.error('[criar-pagamento-pix] PAGBANK_TOKEN ausente no ambiente');
     return res.status(500).json({ error: 'Token não configurado' });
   }
+  console.log('[criar-pagamento-pix] token presente, length:', token.length, 'prefixo:', token.slice(0, 4) + '***');
+
+  const PAGBANK_URL = 'https://api.pagbank.com.br/charges';
 
   try {
     const { total, email, orderId, description } = req.body;
+    console.log('[criar-pagamento-pix] orderId:', orderId, 'total:', total, 'temEmail:', !!email);
 
     const orderRef = db.doc(`users/${uid}/orders/${orderId}`);
     const orderSnap = await orderRef.get();
@@ -45,20 +50,37 @@ const handler = async (req, res) => {
       return res.status(400).json({ error: 'Valor do pedido inválido.' });
     }
 
-    const response = await fetch('https://api.pagbank.com.br/charges', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        reference_id: orderId,
-        description: description || `Pedido #${orderId.slice(-6)} — Empório Coisas de Minas`,
-        amount: { value: Math.round(total * 100) },
-        payment_method: { type: 'pix' },
-        customer: { email: email || 'cliente@emporiominas.com.br' },
-      }),
-    });
+    const requestBody = {
+      reference_id: orderId,
+      description: description || `Pedido #${orderId.slice(-6)} — Empório Coisas de Minas`,
+      amount: { value: Math.round(total * 100) },
+      payment_method: { type: 'pix' },
+      customer: { email: email || 'cliente@emporiominas.com.br' },
+    };
+    console.log('[criar-pagamento-pix] POST', PAGBANK_URL);
+    console.log('[criar-pagamento-pix] body (sem PII):', JSON.stringify({
+      ...requestBody,
+      customer: { email: '[omitido]' },
+    }));
+
+    let response;
+    try {
+      response = await fetch(PAGBANK_URL, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+    } catch (fetchError) {
+      console.error('[criar-pagamento-pix] fetch error:', fetchError.message);
+      console.error('[criar-pagamento-pix] error name:', fetchError.name);
+      console.error('[criar-pagamento-pix] error cause:', fetchError.cause);
+      return res.status(502).json({ error: 'Falha ao conectar com o PagBank' });
+    }
+
+    console.log('[criar-pagamento-pix] PagBank response status:', response.status, response.statusText);
 
     const data = await response.json();
 
@@ -70,9 +92,10 @@ const handler = async (req, res) => {
     const qr = data.qr_codes?.[0];
     const pixCopyPaste = qr?.text || qr?.emv || '';
     const qrImageUrl = qr?.links?.find((l) => l.rel === 'QRCODE.PNG' || l.media === 'image/png')?.href;
+    console.log('[criar-pagamento-pix] chargeId:', data.id, 'status:', data.status, 'temEmv:', !!pixCopyPaste, 'temQrUrl:', !!qrImageUrl);
 
     if (!pixCopyPaste && !qrImageUrl) {
-      console.error('[criar-pagamento-pix] resposta sem QR code:', data);
+      console.error('[criar-pagamento-pix] resposta sem QR code. Chaves recebidas:', Object.keys(data));
       return res.status(502).json({ error: 'PagBank não retornou QR Code.' });
     }
 
@@ -94,7 +117,8 @@ const handler = async (req, res) => {
       qr_code_base64: qrCodeBase64,
     });
   } catch (error) {
-    console.error('[criar-pagamento-pix]', error.message);
+    console.error('[criar-pagamento-pix] erro geral:', error.message);
+    console.error('[criar-pagamento-pix] error name:', error.name);
     return res.status(500).json({ error: 'Erro interno' });
   }
 };
