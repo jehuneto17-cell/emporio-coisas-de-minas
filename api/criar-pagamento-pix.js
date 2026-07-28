@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
   }
 
-  const PAGBANK_TOKEN = process.env.PAGBANK_TOKEN;
+  const PAGBANK_TOKEN = process.env.PAGBANK_TOKEN?.trim();
   if (!PAGBANK_TOKEN) return res.status(500).json({ error: 'Token do PagBank não configurado.' });
 
   try {
