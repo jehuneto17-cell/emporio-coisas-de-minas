@@ -1,6 +1,6 @@
 import { auth, db } from './_firebaseAdmin.js';
 
-export default async function handler(req, res) {
+const handler = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -8,23 +8,25 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const firebaseToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  if (!token) {
+  if (!firebaseToken) {
     return res.status(401).json({ error: 'Autenticação necessária.' });
   }
 
   let uid;
   try {
-    const decoded = await auth.verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(firebaseToken);
     uid = decoded.uid;
   } catch (e) {
     console.warn('[criar-pagamento-pix] token inválido:', e.message);
     return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
   }
 
-  const PAGBANK_TOKEN = process.env.PAGBANK_TOKEN?.trim();
-  if (!PAGBANK_TOKEN) return res.status(500).json({ error: 'Token do PagBank não configurado.' });
+  const token = process.env.PAGBANK_TOKEN?.trim();
+  if (!token) {
+    return res.status(500).json({ error: 'Token não configurado' });
+  }
 
   try {
     const { total, email, orderId, description } = req.body;
@@ -46,7 +48,7 @@ export default async function handler(req, res) {
     const response = await fetch('https://api.pagbank.com.br/charges', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${PAGBANK_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -59,18 +61,17 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
+
     if (!response.ok) {
       console.error('[criar-pagamento-pix] PagBank error:', data);
-      return res.status(response.status >= 400 && response.status < 500 ? 400 : 502).json({
-        error: data.error_messages?.[0]?.description || 'Erro ao criar pagamento PIX.',
-      });
+      return res.status(400).json({ error: 'Falha ao criar pagamento' });
     }
 
     const qr = data.qr_codes?.[0];
-    const emv = qr?.text || qr?.emv;
+    const pixCopyPaste = qr?.text || qr?.emv || '';
     const qrImageUrl = qr?.links?.find((l) => l.rel === 'QRCODE.PNG' || l.media === 'image/png')?.href;
 
-    if (!emv && !qrImageUrl) {
+    if (!pixCopyPaste && !qrImageUrl) {
       console.error('[criar-pagamento-pix] resposta sem QR code:', data);
       return res.status(502).json({ error: 'PagBank não retornou QR Code.' });
     }
@@ -89,11 +90,13 @@ export default async function handler(req, res) {
     return res.status(200).json({
       id: data.id,
       status: data.status,
-      qr_code: emv || null,
+      qr_code: pixCopyPaste || null,
       qr_code_base64: qrCodeBase64,
     });
-  } catch (e) {
-    console.error('[criar-pagamento-pix]', e);
-    return res.status(502).json({ error: 'Erro interno ao criar pagamento PIX.' });
+  } catch (error) {
+    console.error('[criar-pagamento-pix]', error.message);
+    return res.status(500).json({ error: 'Erro interno' });
   }
-}
+};
+
+export default handler;
