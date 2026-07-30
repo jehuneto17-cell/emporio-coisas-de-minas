@@ -30,7 +30,7 @@ const handler = async (req, res) => {
   }
   console.log('[criar-pagamento-pix] token presente, length:', token.length, 'prefixo:', token.slice(0, 4) + '***');
 
-  const PAGBANK_URL = 'https://api.pagbank.com.br/charges';
+  const PAGBANK_URL = 'https://sandbox.api.pagseguro.com/charges';
 
   try {
     const { total, email, orderId, description } = req.body;
