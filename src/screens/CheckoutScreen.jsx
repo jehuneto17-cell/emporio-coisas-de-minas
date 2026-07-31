@@ -12,6 +12,28 @@ import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile,
 
 const CEP_ORIGEM = '37900900';
 
+const MOTOTAXI_CIDADES = ['itau de minas', 'passos'];
+const MOTOTAXI_PRICE = 8.0;
+const MOTOTAXI_OPTION = {
+  id: 'mototaxi',
+  name: 'Mototaxi',
+  price: MOTOTAXI_PRICE,
+  delivery_time: null,
+  company: { name: 'Mototaxi Local' },
+};
+
+function normalizeCity(city) {
+  return (city || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function isMototaxiCity(city) {
+  return MOTOTAXI_CIDADES.includes(normalizeCity(city));
+}
+
 const PRODUCTION_API_BASE = 'https://emporio-coisas-de-minas.vercel.app';
 
 function getApiBaseUrl() {
@@ -251,7 +273,11 @@ export default function CheckoutScreen({ navigation }) {
         console.warn('[Frete] nenhuma transportadora disponível para o CEP', cepDest);
         setShippingError('Nenhuma opção de frete disponível para este CEP.');
       } else {
-        setShippingOptions(valid);
+        // Mototaxi: terceira opção, só para clientes em Itaú de Minas ou Passos
+        const cityEligible = isMototaxiCity(deliveryAddress?.city);
+        const finalOptions = cityEligible ? [...valid, MOTOTAXI_OPTION] : valid;
+        setShippingOptions(finalOptions);
+        // Fora de Itaú de Minas/Passos: seleciona automaticamente a opção mais barata (PAC)
         setMethod(valid[0].id);
       }
     } catch (e) {
@@ -268,6 +294,7 @@ export default function CheckoutScreen({ navigation }) {
   }
 
   const selectedOption = shippingOptions.find((o) => o.id === method) || null;
+  const isMototaxiSelected = selectedOption?.id === 'mototaxi';
   const shippingCost = selectedOption ? parseFloat(selectedOption.price) : 0;
   const effectiveShippingCost = deliveryMode === 'pickup' ? 0 : shippingCost;
   const cardSurcharge = tab === 'card' ? (subtotal - discount) * (taxaCartao / 100) : 0;
@@ -471,6 +498,10 @@ export default function CheckoutScreen({ navigation }) {
       setCheckoutError('Aguarde o cálculo do frete ou tente novamente.');
       return;
     }
+    if (isMototaxiSelected && tab === 'boleto') {
+      setCheckoutError('Mototaxi não está disponível para pagamento via boleto. Escolha PIX ou Cartão.');
+      return;
+    }
     setCheckoutError('');
     setConfirming(true);
     try {
@@ -490,9 +521,14 @@ export default function CheckoutScreen({ navigation }) {
         total: checkoutTotal,
         paymentMethod: tab,
         deliveryMode,
-        shippingMethod: deliveryMode === 'pickup' ? 'Retirada na loja' : (selectedOption?.name || method),
-        shippingCompany: deliveryMode === 'pickup' ? '' : (selectedOption?.company?.name || ''),
+        shippingMethod: deliveryMode === 'pickup'
+          ? 'Retirada na loja'
+          : isMototaxiSelected ? 'mototaxi' : (selectedOption?.name || method),
+        shippingCompany: deliveryMode === 'pickup'
+          ? ''
+          : isMototaxiSelected ? 'Mototaxi Local' : (selectedOption?.company?.name || ''),
         shippingCost: effectiveShippingCost,
+        deliveryCity: deliveryMode === 'delivery' && isMototaxiSelected ? deliveryAddress?.city : undefined,
         deliveryAddress: deliveryMode === 'pickup'
           ? { label: 'Retirada na loja', city: 'Passos', state: 'MG' }
           : (deliveryAddress || null),
@@ -515,9 +551,14 @@ export default function CheckoutScreen({ navigation }) {
             discount,
             coupon: couponApplied ? coupon : '',
             deliveryMode,
-            shippingMethod: deliveryMode === 'pickup' ? 'Retirada na loja' : (selectedOption?.name || ''),
-            shippingCompany: deliveryMode === 'pickup' ? '' : (selectedOption?.company?.name || ''),
+            shippingMethod: deliveryMode === 'pickup'
+              ? 'Retirada na loja'
+              : isMototaxiSelected ? 'mototaxi' : (selectedOption?.name || ''),
+            shippingCompany: deliveryMode === 'pickup'
+              ? ''
+              : isMototaxiSelected ? 'Mototaxi Local' : (selectedOption?.company?.name || ''),
             shippingCost: effectiveShippingCost,
+            deliveryCity: deliveryMode === 'delivery' && isMototaxiSelected ? deliveryAddress?.city : undefined,
             deliveryAddress: deliveryMode === 'pickup'
               ? { label: 'Retirada na loja', city: 'Passos', state: 'MG' }
               : deliveryAddress,
@@ -780,8 +821,14 @@ export default function CheckoutScreen({ navigation }) {
             <View style={styles.deliveryHint}>
               <Ionicons name="time-outline" size={14} color={C.muted} />
               <Text style={styles.deliveryText}>
-                Entrega em até{' '}
-                <Text style={styles.deliveryBold}>{selectedOption.delivery_time} dias úteis</Text>
+                {isMototaxiSelected ? (
+                  <Text style={styles.deliveryBold}>Entrega em até 1 dia útil</Text>
+                ) : (
+                  <>
+                    Entrega em até{' '}
+                    <Text style={styles.deliveryBold}>{selectedOption.delivery_time} dias úteis</Text>
+                  </>
+                )}
               </Text>
             </View>
           )}
@@ -824,22 +871,27 @@ export default function CheckoutScreen({ navigation }) {
             </Text>
           )}
 
-          {!loadingShipping && shippingOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.id}
-              onPress={() => setMethod(opt.id)}
-              style={[styles.shippingOpt, method === opt.id && styles.shippingOptActive]}
-            >
-              <View style={[styles.radio, method === opt.id && styles.radioActive]}>
-                {method === opt.id && <View style={styles.radioDot} />}
-              </View>
-              <View style={styles.shippingInfo}>
-                <Text style={styles.shippingTitle}>{opt.name}</Text>
-                <Text style={styles.shippingSub}>{opt.company?.name} · {opt.delivery_time} dias úteis</Text>
-              </View>
-              <Text style={styles.shippingPrice}>{fmt(parseFloat(opt.price))}</Text>
-            </TouchableOpacity>
-          ))}
+          {!loadingShipping && shippingOptions.map((opt) => {
+            const isMoto = opt.id === 'mototaxi';
+            return (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setMethod(opt.id)}
+                style={[styles.shippingOpt, method === opt.id && styles.shippingOptActive]}
+              >
+                <View style={[styles.radio, method === opt.id && styles.radioActive]}>
+                  {method === opt.id && <View style={styles.radioDot} />}
+                </View>
+                <View style={styles.shippingInfo}>
+                  <Text style={styles.shippingTitle}>{isMoto ? '🏍️ Mototaxi' : opt.name}</Text>
+                  <Text style={styles.shippingSub}>
+                    {isMoto ? 'Mototaxi Itaú/Passos · 1 dia útil' : `${opt.company?.name} · ${opt.delivery_time} dias úteis`}
+                  </Text>
+                </View>
+                <Text style={styles.shippingPrice}>{fmt(parseFloat(opt.price))}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
         )}
 
