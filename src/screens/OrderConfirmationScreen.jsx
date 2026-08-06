@@ -92,7 +92,9 @@ export default function OrderConfirmationScreen({ navigation, route }) {
           </View>
           <Text style={styles.successTitle}>Pedido Confirmado!</Text>
           <Text style={styles.successSub}>
-            {paymentStatus === 'approved' || order?.paymentMethod !== 'pix'
+            {paymentStatus === 'awaiting-confirmation'
+              ? 'Comprovante enviado! Estamos conferindo seu pagamento. Você será avisado quando for confirmado.'
+              : paymentStatus === 'approved' || order?.paymentMethod !== 'pix'
               ? 'Seu pagamento foi aprovado com sucesso'
               : 'Seu pedido foi registrado — aguardando confirmação do PIX'}
           </Text>
@@ -212,7 +214,12 @@ export default function OrderConfirmationScreen({ navigation, route }) {
             <Text style={styles.payLabel}>Mercado Pago</Text>
             <View style={styles.payBadge}><Text style={styles.payBadgeText}>{displayMethod}</Text></View>
             <View style={{ flex: 1 }} />
-            {paymentStatus === 'approved' || order?.paymentMethod !== 'pix' ? (
+            {paymentStatus === 'awaiting-confirmation' ? (
+              <View style={[styles.approvedBadge, { backgroundColor: '#fff3e0' }]}>
+                <Text style={[styles.approvedText, { color: '#f57c00' }]}>Em conferência</Text>
+                <Ionicons name="time-outline" size={11} color="#f57c00" />
+              </View>
+            ) : paymentStatus === 'approved' || order?.paymentMethod !== 'pix' ? (
               <View style={styles.approvedBadge}>
                 <Text style={styles.approvedText}>Aprovado</Text>
                 <Ionicons name="checkmark" size={11} color={C.greenFg} />

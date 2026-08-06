@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet,
-  ActivityIndicator, Platform, Image,
+  ActivityIndicator, Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { getOrder, getPedidoAdmin } from '../services/firestore';
@@ -75,9 +76,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
 
   async function handleCopy(text) {
     try {
-      if (Platform.OS === 'web' && navigator?.clipboard) {
-        await navigator.clipboard.writeText(text);
-      }
+      await Clipboard.setStringAsync(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {}

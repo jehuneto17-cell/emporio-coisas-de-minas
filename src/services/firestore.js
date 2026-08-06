@@ -191,6 +191,21 @@ export async function updatePixStatus(uid, orderId, status) {
   }
 }
 
+export async function marcarComprovanteEnviado(uid, orderId, comprovanteUrl) {
+  try {
+    const data = {
+      status: 'Aguardando confirmação',
+      comprovanteUrl,
+      comprovanteEnviadoEm: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'users', uid, 'orders', orderId), data, { merge: true });
+    await setDoc(doc(db, 'pedidos', orderId), data, { merge: true });
+  } catch (e) {
+    console.warn('[marcarComprovanteEnviado]', e.message);
+    throw e;
+  }
+}
+
 export async function getPedidoAdmin(orderId) {
   try {
     const snap = await getDoc(doc(db, 'pedidos', orderId));
@@ -255,6 +270,7 @@ export async function addPedidoAdmin(uid, orderId, orderData, userProfile) {
         producer: item.producer || '',
         tint: '#a85a32',
         initials: (item.name || '').substring(0, 2).toUpperCase(),
+        productId: item.id || '',
       })),
       address: {
         name: customerName,
@@ -515,6 +531,19 @@ export async function getConfiguracoes() {
   } catch (e) {
     console.warn('[getConfiguracoes]', e);
     return {};
+  }
+}
+
+// Lê o doc /configuracoes/pagamento diretamente (chave e QR Code PIX fixos da
+// loja, cadastrados pelo painel admin) — usado pela PixPaymentScreen.
+export async function getConfigPagamento() {
+  try {
+    const snap = await getDoc(doc(db, 'configuracoes', 'pagamento'));
+    if (!snap.exists()) return null;
+    return snap.data();
+  } catch (e) {
+    console.warn('[getConfigPagamento]', e);
+    return null;
   }
 }
 

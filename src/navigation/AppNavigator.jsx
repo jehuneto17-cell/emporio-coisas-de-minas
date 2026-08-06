@@ -19,6 +19,8 @@ import SearchScreen from '../screens/SearchScreen';
 import ListingScreen from '../screens/ListingScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderConfirmationScreen from '../screens/OrderConfirmationScreen';
+import PixPaymentScreen from '../screens/PixPaymentScreen';
+import UploadComprovanteScreen from '../screens/UploadComprovanteScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
 import SubcategoryScreen from '../screens/SubcategoryScreen';
 import EditProfileScreen from '../screens/EditProfileScreen';
@@ -93,6 +95,8 @@ export default function AppNavigator() {
       <Stack.Screen name="Search" component={SearchScreen} />
       <Stack.Screen name="Listing" component={ListingScreen} />
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
+      <Stack.Screen name="PixPayment" component={PixPaymentScreen} />
+      <Stack.Screen name="UploadComprovante" component={UploadComprovanteScreen} />
       <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
       <Stack.Screen name="Subcategory" component={SubcategoryScreen} />

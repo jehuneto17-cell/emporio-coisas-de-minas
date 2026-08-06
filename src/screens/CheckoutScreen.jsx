@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { C, fmt } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque, savePixData, updatePixStatus, getConfiguracoes } from '../services/firestore';
+import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque, getConfiguracoes } from '../services/firestore';
 
 const CEP_ORIGEM = '37900900';
 
@@ -50,9 +50,7 @@ function getApiBaseUrl() {
 const API_BASE = getApiBaseUrl();
 
 const FRETE_API_URL = `${API_BASE}/api/calcular-frete`;
-const PIX_API_URL = `${API_BASE}/api/criar-pagamento-pix`;
 const CARTAO_API_URL = `${API_BASE}/api/criar-pagamento-cartao`;
-const VERIFICAR_API_URL = `${API_BASE}/api/verificar-pagamento`;
 
 const MP_PUBLIC_KEY = 'APP_USR-1cbd888f-0b77-47d3-9d65-62a584297e32';
 
@@ -77,7 +75,6 @@ export default function CheckoutScreen({ navigation }) {
 
   const [deliveryMode, setDeliveryMode] = useState('delivery'); // 'delivery' | 'pickup'
   const [tab, setTab] = useState('pix');
-  const [seconds, setSeconds] = useState(15 * 60);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -90,15 +87,6 @@ export default function CheckoutScreen({ navigation }) {
   const [method, setMethod] = useState(null);
   const [loadingShipping, setLoadingShipping] = useState(false);
   const [shippingError, setShippingError] = useState(null);
-
-  // PIX
-  const [pixData, setPixData] = useState(null);
-  const [pixLoading, setPixLoading] = useState(false);
-  const [pixCopied, setPixCopied] = useState(false);
-  const [pixGenerated, setPixGenerated] = useState(false);
-  const [currentOrderId, setCurrentOrderId] = useState(null);
-  const [paymentStatus, setPaymentStatus] = useState('pending'); // pending | approved | rejected
-  const [pollingInterval, setPollingInterval] = useState(null);
 
   // Cartão
   const [cardNumber, setCardNumber] = useState('');
@@ -120,21 +108,6 @@ export default function CheckoutScreen({ navigation }) {
       setShowAuthModal(true);
     }
   }, []);
-
-  useEffect(() => {
-    const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Encerra o polling de status do PIX se o componente for desmontado
-  // (usuário sai da tela) enquanto o pagamento ainda está pendente.
-  useEffect(() => {
-    return () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-    };
-  }, [pollingInterval]);
 
   // Busca a taxa de acréscimo do cartão configurada no painel admin
   useEffect(() => {
@@ -299,7 +272,6 @@ export default function CheckoutScreen({ navigation }) {
   const effectiveShippingCost = deliveryMode === 'pickup' ? 0 : shippingCost;
   const cardSurcharge = tab === 'card' ? (subtotal - discount) * (taxaCartao / 100) : 0;
   const checkoutTotal = Math.max(0, subtotal - discount + effectiveShippingCost + cardSurcharge);
-  const mmss = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 
   function cleanUndefined(obj) {
     if (obj === null || obj === undefined) return null;
@@ -312,92 +284,6 @@ export default function CheckoutScreen({ navigation }) {
       );
     }
     return obj;
-  }
-
-  async function gerarPixReal(orderId) {
-    setPixLoading(true);
-    try {
-      const total = checkoutTotal > 0.5 ? checkoutTotal : 1;
-      const authToken = await getAuthToken();
-      const res = await fetch(PIX_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        },
-        body: JSON.stringify({
-          total,
-          email: user?.email || 'cliente@emporiominas.com.br',
-          orderId,
-          description: `Pedido #${orderId.slice(-6)} — Empório Coisas de Minas`,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao gerar PIX');
-      if (!data.qr_code && !data.qr_code_base64) {
-        throw new Error('QR Code não retornado pelo Mercado Pago. Verifique o valor mínimo (R$ 0,01).');
-      }
-      setPixData(data);
-      setPixGenerated(true);
-      setCurrentOrderId(orderId);
-      setPaymentStatus('pending');
-      // Salva QR Code no Firestore para o cliente pagar depois
-      if (user?.uid) {
-        await savePixData(user.uid, orderId, data);
-      }
-      // Inicia polling a cada 5s
-      if (data.id) {
-        let tentativas = 0;
-        const MAX_TENTATIVAS = 60; // 60 tentativas x 5s = 5 minutos de polling máximo
-        const interval = setInterval(async () => {
-          tentativas++;
-          if (tentativas > MAX_TENTATIVAS) {
-            clearInterval(interval);
-            console.warn('[PIX] tempo máximo de polling atingido, encerrando verificação automática.');
-            return;
-          }
-          try {
-            const pollToken = await getAuthToken();
-            const vRes = await fetch(`${VERIFICAR_API_URL}?paymentId=${data.id}`, {
-              headers: {
-                ...(pollToken ? { Authorization: `Bearer ${pollToken}` } : {}),
-              },
-            });
-            const vData = await vRes.json();
-            if (vData.status === 'approved') {
-              setPaymentStatus('approved');
-              clearInterval(interval);
-              if (user?.uid) await updatePixStatus(user.uid, orderId, 'approved');
-              await decrementarEstoque(items);
-              // Navega automaticamente para confirmação
-              clearCart();
-              navigation.navigate('OrderConfirmation', { orderId, paymentStatus: 'approved' });
-            } else if (vData.status === 'rejected' || vData.status === 'cancelled') {
-              setPaymentStatus('rejected');
-              clearInterval(interval);
-              if (user?.uid) await updatePixStatus(user.uid, orderId, 'rejected');
-            }
-          } catch (e) {
-            console.warn('[PIX polling]', e.message);
-          }
-        }, 5000);
-        setPollingInterval(interval);
-      }
-    } catch (e) {
-      console.warn('[PIX]', e.message);
-      setCheckoutError('Não foi possível gerar o PIX. Tente novamente.');
-    } finally {
-      setPixLoading(false);
-    }
-  }
-
-  function copiarPix() {
-    if (!pixData?.qr_code) return;
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(pixData.qr_code);
-    }
-    setPixCopied(true);
-    setTimeout(() => setPixCopied(false), 3000);
   }
 
   function formatCardNumber(v) {
@@ -505,13 +391,6 @@ export default function CheckoutScreen({ navigation }) {
     setCheckoutError('');
     setConfirming(true);
     try {
-      // Se PIX já foi gerado mas não pago, bloqueia
-      if (tab === 'pix' && pixGenerated && paymentStatus !== 'approved') {
-        setCheckoutError('Escaneie o QR Code acima ou aguarde a confirmação automática do pagamento PIX.');
-        setConfirming(false);
-        return;
-      }
-
       const orderId = await addOrder(user?.uid, cleanUndefined({
         items,
         subtotal,
@@ -571,8 +450,11 @@ export default function CheckoutScreen({ navigation }) {
       }
 
       if (tab === 'pix') {
-        // Gera PIX e mostra QR na tela — não navega ainda
-        await gerarPixReal(orderId);
+        // PIX manual: pedido já foi criado com status 'Aguardando pagamento'.
+        // O cliente paga depois com a chave/QR fixos da loja; a confirmação
+        // é feita manualmente pelo admin — não há cobrança nem polling aqui.
+        clearCart();
+        navigation.navigate('PixPayment', { orderId, total: checkoutTotal });
       } else if (tab === 'card') {
         // Cartão: tokeniza e processa via Mercado Pago
         setCardLoading(true);
@@ -913,67 +795,11 @@ export default function CheckoutScreen({ navigation }) {
             ))}
           </View>
           {tab === 'pix' && (
-            <View style={styles.pixWrap}>
-              {pixGenerated && pixData ? (
-                <>
-                  {paymentStatus === 'approved' ? (
-                    <View style={{ alignItems: 'center', gap: 10, width: '100%' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#e8f5e9', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
-                        <Ionicons name="checkmark-circle" size={22} color="#2e7d32" />
-                        <Text style={{ fontSize: 15, color: '#2e7d32', fontFamily: 'PlusJakartaSans_700Bold' }}>
-                          Pagamento confirmado!
-                        </Text>
-                      </View>
-                    </View>
-                  ) : paymentStatus === 'rejected' ? (
-                    <View style={{ alignItems: 'center', gap: 10, width: '100%' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fdecea', borderRadius: 12, padding: 14, alignSelf: 'stretch', justifyContent: 'center' }}>
-                        <Ionicons name="close-circle" size={22} color="#c0392b" />
-                        <Text style={{ fontSize: 14, color: '#c0392b', fontFamily: 'WorkSans_600SemiBold' }}>
-                          PIX expirado ou rejeitado
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <>
-                      {pixData.qr_code_base64 ? (
-                        <View style={styles.qrCode}>
-                          <Image
-                            source={{ uri: `data:image/png;base64,${pixData.qr_code_base64}` }}
-                            style={{ width: 130, height: 130 }}
-                            resizeMode="contain"
-                          />
-                        </View>
-                      ) : null}
-                      <Text style={{ fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-                        Escaneie ou copie o código abaixo
-                      </Text>
-                      <TouchableOpacity style={styles.pixCopy} onPress={copiarPix}>
-                        <Text style={styles.pixCode} numberOfLines={2}>{pixData.qr_code}</Text>
-                        <View style={styles.copyBtn}>
-                          <Ionicons name={pixCopied ? 'checkmark' : 'copy-outline'} size={16} color="#fff" />
-                        </View>
-                      </TouchableOpacity>
-                      {pixCopied && (
-                        <Text style={{ fontSize: 12, color: '#2e7d32', fontFamily: 'WorkSans_500Medium' }}>✓ Código copiado!</Text>
-                      )}
-                      <View style={styles.countdownRow}>
-                        <ActivityIndicator size="small" color={C.terra} />
-                        <Text style={styles.countdownText}>Aguardando pagamento... <Text style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>{mmss}</Text></Text>
-                      </View>
-                    </>
-                  )}
-                </>
-              ) : pixLoading ? (
-                <ActivityIndicator size="large" color={C.terra} />
-              ) : (
-                <View style={{ alignItems: 'center', gap: 10, paddingVertical: 16 }}>
-                  <Ionicons name="qr-code-outline" size={48} color={C.muted} />
-                  <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
-                    O QR Code PIX será gerado ao confirmar o pedido.
-                  </Text>
-                </View>
-              )}
+            <View style={{ alignItems: 'center', gap: 10, paddingVertical: 16 }}>
+              <Ionicons name="qr-code-outline" size={48} color={C.muted} />
+              <Text style={{ fontSize: 13, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center' }}>
+                Ao confirmar, você verá a chave e o QR Code PIX da loja para pagar. A confirmação do pagamento é feita manualmente.
+              </Text>
             </View>
           )}
           {tab === 'card' && (
@@ -1113,9 +939,7 @@ export default function CheckoutScreen({ navigation }) {
           {confirming || cardLoading
             ? <ActivityIndicator color="#fff" />
             : <Text style={styles.confirmText}>
-                {tab === 'pix' && pixGenerated
-                  ? paymentStatus === 'approved' ? 'Pagamento confirmado ✓' : 'Aguardando pagamento PIX...'
-                  : `Confirmar Pagamento · ${fmt(checkoutTotal)}`}
+                {`Confirmar Pagamento · ${fmt(checkoutTotal)}`}
               </Text>
           }
         </TouchableOpacity>
