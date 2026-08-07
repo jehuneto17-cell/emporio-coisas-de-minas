@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { addOrder, getAddresses, getProductById, addPedidoAdmin, getUserProfile, decrementarEstoque, getConfiguracoes } from '../services/firestore';
 
-const CEP_ORIGEM = '37900900';
+const CEP_ORIGEM = '37902308';
 
 const MOTOTAXI_CIDADES = ['itau de minas', 'passos'];
 const MOTOTAXI_PRICE = 8.0;
@@ -57,7 +57,7 @@ const MP_PUBLIC_KEY = 'APP_USR-1cbd888f-0b77-47d3-9d65-62a584297e32';
 const mapaLoja = require('../../assets/mapa-loja.png');
 
 const LOJA_ENDERECO = 'Rua dos Piantinos, 657 — Bairro Muarama — Passos, MG';
-const LOJA_MAPS_URL = 'https://www.google.com/maps/@-20.7274348,-46.6114766,3a,70.3y,134.97h,85.27t/data=!3m7!1e1!3m5!1sJMrtLvXdvsX4_ZDBJBzmqQ!2e0!6shttps:%2F%2Fstreetviewpixels-pa.googleapis.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D4.725950555789794%26panoid%3DJMrtLvXdvsX4_ZDBJBzmqQ%26yaw%3D134.97445463305277!7i16384!8i8192?entry=ttu&g_ep=EgoyMDI2MDcxNS4wIKXMDSoASAFQAw%3D%3D';
+const LOJA_MAPS_URL = 'https://www.google.com/maps/search/?api=1&query=Rua+dos+Piantinos+657+Muarama+Passos+MG+37902-308';
 
 export default function CheckoutScreen({ navigation }) {
   const { isAuthenticated, user } = useAuth();
