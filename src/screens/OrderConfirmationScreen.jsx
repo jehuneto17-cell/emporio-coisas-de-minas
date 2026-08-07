@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -133,7 +133,15 @@ export default function OrderConfirmationScreen({ navigation, route }) {
                 const badge    = order ? (it.sale > 0 ? `−${it.sale}%` : null) : it.badge;
                 return (
                   <View key={i} style={styles.summaryItem}>
-                    <LinearGradient colors={colors} style={styles.itemImg} />
+                    <LinearGradient colors={colors} style={styles.itemImg}>
+                      {((it.images && it.images[0]) || it.imageUrl) ? (
+                        <Image
+                          source={{ uri: (it.images && it.images[0]) || it.imageUrl }}
+                          style={StyleSheet.absoluteFillObject}
+                          resizeMode="cover"
+                        />
+                      ) : null}
+                    </LinearGradient>
                     <Text style={styles.itemName} numberOfLines={1}>{it.name}</Text>
                     <View style={styles.itemRight}>
                       {badge && (
