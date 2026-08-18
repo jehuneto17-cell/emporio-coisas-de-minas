@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -220,6 +220,15 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.logoutText}>Sair da conta</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Footer */}
+        <View style={styles.footerSection}>
+          <TouchableOpacity onPress={() => Linking.openURL('https://www.instagram.com/jehu_dev_e.commerce/')}>
+            <Text style={styles.footerText}>
+              Desenvolvido por <Text style={styles.footerHandle}>@JEHU_DEV_E.COMMERCE</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -263,6 +272,9 @@ const styles = StyleSheet.create({
   menuLabel: { fontSize: 15, color: C.ink, fontFamily: 'WorkSans_500Medium', flex: 1 },
   logoutBtn: { backgroundColor: '#fff5f5', borderRadius: 12, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, borderWidth: 1, borderColor: '#ffd0d0' },
   logoutText: { fontSize: 15, color: C.terra, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  footerSection: { alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, marginTop: 8 },
+  footerText: { fontSize: 11, color: C.subtle, fontFamily: 'WorkSans_400Regular', textAlign: 'center', lineHeight: 16 },
+  footerHandle: { color: C.terra, fontFamily: 'WorkSans_600SemiBold' },
   guestState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 },
   guestTitle: { fontSize: 20, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', textAlign: 'center' },
   guestDesc: { fontSize: 14, color: C.muted, fontFamily: 'WorkSans_400Regular', textAlign: 'center', lineHeight: 22 },
