@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, fmt } from '../theme';
+import { C, fmt, isEsgotado } from '../theme';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { getProducts, getProductsByCategory } from '../services/firestore';
@@ -59,6 +59,7 @@ export default function ListingScreen({ navigation, route }) {
 
   function renderProduct({ item: p }) {
     const img = (p.images && p.images[0]) || p.imageUrl || null;
+    const esgotado = isEsgotado(p);
     return (
       <TouchableOpacity
         style={styles.card}
@@ -67,11 +68,16 @@ export default function ListingScreen({ navigation, route }) {
       >
         <LinearGradient colors={p.colors ?? ['#e0c090', '#a07030']} style={styles.cardImg}>
           {img && <Image source={{ uri: img }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />}
-          {p.sale ? (
+          {p.sale && !esgotado ? (
             <View style={styles.saleBadge}>
               <Text style={styles.saleBadgeText}>−{p.sale}%</Text>
             </View>
           ) : null}
+          {esgotado && (
+            <View style={styles.esgotadoBadge}>
+              <Text style={styles.saleBadgeText}>Esgotado</Text>
+            </View>
+          )}
           <TouchableOpacity onPress={() => toggleFavorite(p)} style={styles.likeBtn}>
             <Ionicons name={isFavorite(p.id) ? 'heart' : 'heart-outline'} size={14} color={isFavorite(p.id) ? C.terra : C.brown} />
           </TouchableOpacity>
@@ -84,8 +90,16 @@ export default function ListingScreen({ navigation, route }) {
             <Text style={styles.ratingText}>{p.rating?.toFixed(1) ?? '—'}</Text>
           </View>
           <View style={styles.cardFooter}>
-            <Text style={styles.cardPrice}>{fmt(p.price)}</Text>
-            <TouchableOpacity style={styles.addBtn} onPress={() => addItem({ ...p, qty: 1 })}>
+            {esgotado ? (
+              <Text style={styles.esgotadoText}>Esgotado</Text>
+            ) : (
+              <Text style={styles.cardPrice}>{fmt(p.price)}</Text>
+            )}
+            <TouchableOpacity
+              style={[styles.addBtn, esgotado && styles.addBtnDisabled]}
+              onPress={() => addItem({ ...p, qty: 1 })}
+              disabled={esgotado}
+            >
               <Ionicons name="add" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
@@ -186,6 +200,9 @@ const styles = StyleSheet.create({
   cardImg:         { width: '100%', aspectRatio: 1 },
   saleBadge:       { position: 'absolute', top: 9, left: 9, backgroundColor: C.terra, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   saleBadgeText:   { color: '#fff', fontSize: 10, fontFamily: 'WorkSans_600SemiBold' },
+  imgEsgotado:     { opacity: 0.4 },
+  esgotadoBadge:   { position: 'absolute', top: 9, left: 9, backgroundColor: C.subtle, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  esgotadoText:    { fontSize: 13, color: C.subtle, fontFamily: 'PlusJakartaSans_700Bold' },
   likeBtn:         { position: 'absolute', top: 9, right: 9, width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   cardBody:        { padding: 11, gap: 3 },
   cardName:        { fontSize: 13, color: C.ink, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 17 },
@@ -195,4 +212,5 @@ const styles = StyleSheet.create({
   cardFooter:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
   cardPrice:       { fontSize: 14, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
   addBtn:          { width: 28, height: 28, borderRadius: 14, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' },
+  addBtnDisabled:  { backgroundColor: C.border },
 });

@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { C, fmt } from '../theme';
+import { C, fmt, isEsgotado } from '../theme';
 import { getProducts, getCategories, getBanners, getProductsByCategory } from '../services/firestore';
 import { Jar, Cake, Pepper, FireSimple, Bread, Wine, ShoppingBag } from 'phosphor-react-native';
 import { useCart } from '../context/CartContext';
@@ -53,6 +53,7 @@ function productImage(p) {
 
 function ProductCard({ product, onAddCart, onToggleFav, isFav, onPress, style }) {
   const img = productImage(product);
+  const esgotado = isEsgotado(product);
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onPress(product)} style={[productCardStyles.card, style]}>
       {/* Image / gradient fallback */}
@@ -68,9 +69,14 @@ function ProductCard({ product, onAddCart, onToggleFav, isFav, onPress, style })
           />
         )}
         {/* Sale badge */}
-        {product.sale > 0 && (
+        {product.sale > 0 && !esgotado && (
           <View style={productCardStyles.saleBadge}>
             <Text style={productCardStyles.saleBadgeText}>-{product.sale}%</Text>
+          </View>
+        )}
+        {esgotado && (
+          <View style={productCardStyles.esgotadoBadge}>
+            <Text style={productCardStyles.esgotadoBadgeText}>Esgotado</Text>
           </View>
         )}
         {/* Fav button */}
@@ -98,8 +104,16 @@ function ProductCard({ product, onAddCart, onToggleFav, isFav, onPress, style })
           </View>
         )}
         <View style={productCardStyles.priceRow}>
-          <Text style={productCardStyles.price}>{fmt(product.price)}</Text>
-          <TouchableOpacity onPress={() => onPress(product)} style={productCardStyles.addBtn}>
+          {esgotado ? (
+            <Text style={productCardStyles.esgotadoText}>Esgotado</Text>
+          ) : (
+            <Text style={productCardStyles.price}>{fmt(product.price)}</Text>
+          )}
+          <TouchableOpacity
+            onPress={() => onPress(product)}
+            style={[productCardStyles.addBtn, esgotado && productCardStyles.addBtnDisabled]}
+            disabled={esgotado}
+          >
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -128,6 +142,14 @@ const productCardStyles = StyleSheet.create({
     paddingHorizontal: 6, paddingVertical: 2,
   },
   saleBadgeText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#fff' },
+  imgEsgotado: { opacity: 0.4 },
+  esgotadoBadge: {
+    position: 'absolute', top: 8, left: 8,
+    backgroundColor: C.subtle, borderRadius: 6,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  esgotadoBadgeText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#fff' },
+  esgotadoText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.subtle },
   favBtn: {
     position: 'absolute', top: 8, right: 8,
     width: 30, height: 30, borderRadius: 15,
@@ -145,12 +167,14 @@ const productCardStyles = StyleSheet.create({
     width: 28, height: 28, borderRadius: 8,
     backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center',
   },
+  addBtnDisabled: { backgroundColor: C.border },
 });
 
 // ─── ProductGridCard (2-col grid) ─────────────────────────────────────────────
 
 function ProductGridCard({ product, onAddCart, onToggleFav, isFav, onPress }) {
   const img = productImage(product);
+  const esgotado = isEsgotado(product);
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={() => onPress(product)} style={[gridCardStyles.card, { width: GRID_W }]}>
       <View style={gridCardStyles.imgWrap}>
@@ -159,9 +183,14 @@ function ProductGridCard({ product, onAddCart, onToggleFav, isFav, onPress }) {
         ) : (
           <LinearGradient colors={[C.brown, C.terra]} style={gridCardStyles.img} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
         )}
-        {product.sale > 0 && (
+        {product.sale > 0 && !esgotado && (
           <View style={productCardStyles.saleBadge}>
             <Text style={productCardStyles.saleBadgeText}>-{product.sale}%</Text>
+          </View>
+        )}
+        {esgotado && (
+          <View style={productCardStyles.esgotadoBadge}>
+            <Text style={productCardStyles.esgotadoBadgeText}>Esgotado</Text>
           </View>
         )}
         <TouchableOpacity
@@ -182,8 +211,16 @@ function ProductGridCard({ product, onAddCart, onToggleFav, isFav, onPress }) {
           </View>
         )}
         <View style={productCardStyles.priceRow}>
-          <Text style={gridCardStyles.price}>{fmt(product.price)}</Text>
-          <TouchableOpacity onPress={() => onPress(product)} style={productCardStyles.addBtn}>
+          {esgotado ? (
+            <Text style={productCardStyles.esgotadoText}>Esgotado</Text>
+          ) : (
+            <Text style={gridCardStyles.price}>{fmt(product.price)}</Text>
+          )}
+          <TouchableOpacity
+            onPress={() => onPress(product)}
+            style={[productCardStyles.addBtn, esgotado && productCardStyles.addBtnDisabled]}
+            disabled={esgotado}
+          >
             <Ionicons name="add" size={16} color="#fff" />
           </TouchableOpacity>
         </View>

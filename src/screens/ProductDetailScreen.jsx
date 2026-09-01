@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, TextInput,
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, fmt } from '../theme';
+import { C, fmt, isEsgotado } from '../theme';
 import { getAllCategories, getSimilarProducts, getReviews, getUserReview, hasUserBoughtProduct, submitReview } from '../services/firestore';
 import { useCart } from '../context/CartContext';
 import { useFavorites } from '../context/FavoritesContext';
@@ -18,6 +18,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   const { user } = useAuth();
 
   const weights = product.weights ?? DEFAULT_WEIGHTS;
+  const esgotado = isEsgotado(product);
   const [slide, setSlide] = useState(1);
   const [weight, setWeight] = useState(weights[1] ?? weights[0]);
   const [qty, setQty] = useState(1);
@@ -143,10 +144,17 @@ export default function ProductDetailScreen({ navigation, route }) {
         {/* Info */}
         <View style={styles.infoCard}>
           <View style={styles.infoTopRow}>
-            <View style={styles.catBadge}>
-              <Text style={styles.catBadgeText}>
-                {catName || 'Produto'}
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={styles.catBadge}>
+                <Text style={styles.catBadgeText}>
+                  {catName || 'Produto'}
+                </Text>
+              </View>
+              {esgotado && (
+                <View style={styles.esgotadoBadge}>
+                  <Text style={styles.esgotadoBadgeText}>Esgotado</Text>
+                </View>
+              )}
             </View>
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={C.ochre} />
@@ -334,6 +342,7 @@ export default function ProductDetailScreen({ navigation, route }) {
               <View style={styles.similarGrid}>
                 {similares.map(p => {
                   const img = (p.images && p.images[0]) || p.imageUrl || null;
+                  const pEsgotado = isEsgotado(p);
                   return (
                     <TouchableOpacity
                       key={p.id}
@@ -346,7 +355,11 @@ export default function ProductDetailScreen({ navigation, route }) {
                       </LinearGradient>
                       <View style={{ padding: 10 }}>
                         <Text style={styles.similarName} numberOfLines={2}>{p.name}</Text>
-                        <Text style={styles.similarPrice}>{fmt(p.price)}</Text>
+                        {pEsgotado ? (
+                          <Text style={[styles.similarPrice, { color: C.subtle }]}>Esgotado</Text>
+                        ) : (
+                          <Text style={styles.similarPrice}>{fmt(p.price)}</Text>
+                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -359,23 +372,32 @@ export default function ProductDetailScreen({ navigation, route }) {
 
       {/* Bottom Bar */}
       <View style={styles.bottomBar}>
-        <View style={styles.totalWrap}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{fmt((product.price ?? 0) * qty)}</Text>
-        </View>
-        <View style={styles.qtyRow}>
-          <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
-            <Ionicons name="remove" size={14} color={C.brown} />
-          </TouchableOpacity>
-          <Text style={styles.qtyNum}>{qty}</Text>
-          <TouchableOpacity onPress={() => setQty(qty + 1)} style={[styles.qtyBtn, styles.qtyBtnActive]}>
-            <Ionicons name="add" size={14} color="#fff" />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity style={styles.addBtn} onPress={handleAddToCart}>
-          <Text style={styles.addBtnText}>Adicionar</Text>
-          <Ionicons name="cart-outline" size={16} color="#fff" />
-        </TouchableOpacity>
+        {esgotado ? (
+          <View style={styles.esgotadoBar}>
+            <Ionicons name="close-circle-outline" size={18} color={C.subtle} />
+            <Text style={styles.esgotadoBarText}>Produto esgotado</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.totalWrap}>
+              <Text style={styles.totalLabel}>Total</Text>
+              <Text style={styles.totalValue}>{fmt((product.price ?? 0) * qty)}</Text>
+            </View>
+            <View style={styles.qtyRow}>
+              <TouchableOpacity onPress={() => setQty(Math.max(1, qty - 1))} style={styles.qtyBtn}>
+                <Ionicons name="remove" size={14} color={C.brown} />
+              </TouchableOpacity>
+              <Text style={styles.qtyNum}>{qty}</Text>
+              <TouchableOpacity onPress={() => setQty(qty + 1)} style={[styles.qtyBtn, styles.qtyBtnActive]}>
+                <Ionicons name="add" size={14} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.addBtn} onPress={handleAddToCart}>
+              <Text style={styles.addBtnText}>Adicionar</Text>
+              <Ionicons name="cart-outline" size={16} color="#fff" />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -394,6 +416,8 @@ const styles = StyleSheet.create({
   infoTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   catBadge: { backgroundColor: '#fdddc8', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
   catBadgeText: { color: C.brown, fontSize: 11, fontFamily: 'WorkSans_600SemiBold' },
+  esgotadoBadge: { backgroundColor: C.chip, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  esgotadoBadgeText: { color: C.subtle, fontSize: 11, fontFamily: 'WorkSans_600SemiBold' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   ratingScore: { fontSize: 13, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
   ratingCount: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_400Regular' },
@@ -428,6 +452,8 @@ const styles = StyleSheet.create({
   qtyNum: { fontSize: 15, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold', minWidth: 16, textAlign: 'center' },
   addBtn: { flex: 1, height: 48, borderRadius: 12, backgroundColor: C.terra, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   addBtnText: { color: '#fff', fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  esgotadoBar: { flex: 1, height: 48, borderRadius: 12, backgroundColor: C.chip, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  esgotadoBarText: { color: C.subtle, fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
   similarGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   similarCard:  { width: '47.5%', backgroundColor: C.card, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: C.border },
   similarImg:   { width: '100%', aspectRatio: 1 },

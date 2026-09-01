@@ -353,7 +353,7 @@ export async function getCategories() {
   return cats.map(c => ({
     ...c,
     count: all.filter(p => p.category === c.id).length,
-  })).sort((a, b) => (a.order || 0) - (b.order || 0));
+  })).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt-BR'));
 }
 
 export async function getBanners() {

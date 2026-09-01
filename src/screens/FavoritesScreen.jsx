@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, fmt } from '../theme';
+import { C, fmt, isEsgotado } from '../theme';
 import { useFavorites } from '../context/FavoritesContext';
 import { useCart } from '../context/CartContext';
 
@@ -29,7 +29,9 @@ export default function FavoritesScreen({ navigation }) {
         </View>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>
-          {favorites.map((p) => (
+          {favorites.map((p) => {
+            const esgotado = isEsgotado(p);
+            return (
             <TouchableOpacity
               key={p.id}
               style={styles.card}
@@ -44,9 +46,14 @@ export default function FavoritesScreen({ navigation }) {
                     resizeMode="cover"
                   />
                 ) : null}
-                {p.sale && (
+                {p.sale && !esgotado && (
                   <View style={styles.saleBadge}>
                     <Text style={styles.saleBadgeText}>−{p.sale}%</Text>
+                  </View>
+                )}
+                {esgotado && (
+                  <View style={styles.esgotadoBadge}>
+                    <Text style={styles.saleBadgeText}>Esgotado</Text>
                   </View>
                 )}
               </LinearGradient>
@@ -58,10 +65,15 @@ export default function FavoritesScreen({ navigation }) {
                   <Text style={styles.ratingText}>{p.rating}</Text>
                 </View>
                 <View style={styles.cardFooter}>
-                  <Text style={styles.cardPrice}>{typeof p.price === 'number' ? fmt(p.price) : p.price}</Text>
+                  {esgotado ? (
+                    <Text style={styles.esgotadoText}>Esgotado</Text>
+                  ) : (
+                    <Text style={styles.cardPrice}>{typeof p.price === 'number' ? fmt(p.price) : p.price}</Text>
+                  )}
                   <TouchableOpacity
-                    style={styles.cartBtn}
+                    style={[styles.cartBtn, esgotado && styles.cartBtnDisabled]}
                     onPress={() => addItem({ ...p, qty: 1 })}
+                    disabled={esgotado}
                   >
                     <Ionicons name="cart-outline" size={16} color="#fff" />
                   </TouchableOpacity>
@@ -71,7 +83,8 @@ export default function FavoritesScreen({ navigation }) {
                 <Ionicons name="heart" size={20} color={C.terra} />
               </TouchableOpacity>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -93,6 +106,9 @@ const styles = StyleSheet.create({
   cardImg: { width: 90, height: 90 },
   saleBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: C.terra, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5 },
   saleBadgeText: { color: '#fff', fontSize: 9, fontFamily: 'WorkSans_600SemiBold' },
+  imgEsgotado: { opacity: 0.4 },
+  esgotadoBadge: { position: 'absolute', top: 8, left: 8, backgroundColor: C.subtle, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2.5 },
+  esgotadoText: { fontSize: 14, color: C.subtle, fontFamily: 'PlusJakartaSans_700Bold' },
   cardInfo: { flex: 1, padding: 12, gap: 3 },
   cardName: { fontSize: 14, color: C.ink, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 18 },
   cardProducer: { fontSize: 12, color: C.muted, fontFamily: 'WorkSans_400Regular' },
@@ -101,5 +117,6 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
   cardPrice: { fontSize: 14, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
   cartBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.terra, alignItems: 'center', justifyContent: 'center' },
+  cartBtnDisabled: { backgroundColor: C.border },
   removeBtn: { padding: 16 },
 });

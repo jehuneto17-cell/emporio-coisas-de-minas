@@ -17,3 +17,5 @@ export const C = {
 };
 
 export const fmt = (n) => 'R$ ' + n.toFixed(2).replace('.', ',');
+
+export const isEsgotado = (product) => (product?.stock ?? 1) <= 0;

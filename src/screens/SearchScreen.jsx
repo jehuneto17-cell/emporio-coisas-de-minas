@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { C, fmt } from '../theme';
+import { C, fmt, isEsgotado } from '../theme';
 import { getProducts, getCategories } from '../services/firestore';
 
 const HISTORY_KEY = 'search_history';
@@ -125,7 +125,9 @@ export default function SearchScreen({ navigation }) {
                 ? `${results.length} resultado${results.length !== 1 ? 's' : ''} para "${query}"`
                 : `Nenhum resultado para "${query}"`}
             </Text>
-            {results.map((p) => (
+            {results.map((p) => {
+              const esgotado = isEsgotado(p);
+              return (
               <TouchableOpacity
                 key={p.id}
                 style={styles.resultCard}
@@ -153,9 +155,14 @@ export default function SearchScreen({ navigation }) {
                     <Text style={styles.ratingText}>{p.rating?.toFixed(1) ?? '—'}</Text>
                   </View>
                 </View>
-                <Text style={styles.resultPrice}>{fmt(p.price)}</Text>
+                {esgotado ? (
+                  <Text style={styles.esgotadoText}>Esgotado</Text>
+                ) : (
+                  <Text style={styles.resultPrice}>{fmt(p.price)}</Text>
+                )}
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -187,4 +194,5 @@ const styles = StyleSheet.create({
   resultRating: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingText: { fontSize: 11, color: C.muted, fontFamily: 'WorkSans_600SemiBold' },
   resultPrice: { fontSize: 14, color: C.brown, fontFamily: 'PlusJakartaSans_700Bold' },
+  esgotadoText: { fontSize: 13, color: C.subtle, fontFamily: 'PlusJakartaSans_700Bold' },
 });
