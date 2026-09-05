@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "emporio-app",
+    "name": "Empório Coisas de Minas",
     "slug": "emporio-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,6 +15,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.emporiocoisasdeminas.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#52170c",
         "foregroundImage": "./assets/android-icon-foreground.png",
