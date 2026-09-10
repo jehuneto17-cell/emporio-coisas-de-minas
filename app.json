@@ -16,7 +16,11 @@
     },
     "android": {
       "package": "com.emporiocoisasdeminas.app",
-      "versionCode": 1
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#52170c",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
